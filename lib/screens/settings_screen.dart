@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'alert_ranges_screen.dart';
 import 'change_password_screen.dart';
+import '../main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,7 +14,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
   bool _remindersEnabled = true;
-  bool _darkModeEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Sincronizar con el estado del tema al iniciar
+    isDarkModeNotifier.addListener(_updateDarkModeState);
+  }
+
+  @override
+  void dispose() {
+    isDarkModeNotifier.removeListener(_updateDarkModeState);
+    super.dispose();
+  }
+
+  void _updateDarkModeState() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,13 +152,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             iconColor: const Color(0xFF0073E6),
             title: 'Apariencia modo oscuro',
             subtitle: 'Cambiar tema de la aplicación',
-            value: _darkModeEnabled,
+            value: isDarkModeNotifier.value,
             onChanged: (value) {
-              setState(() {
-                _darkModeEnabled = value;
-              });
+              // Cambiar el tema globalmente usando el ValueNotifier
+              isDarkModeNotifier.value = value;
+              
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Funcionalidad próximamente')),
+                SnackBar(
+                  content: Text(
+                    value ? 'Modo oscuro activado' : 'Modo claro activado',
+                  ),
+                  backgroundColor: const Color(0xFF337536),
+                  duration: const Duration(seconds: 2),
+                ),
               );
             },
           ),
@@ -182,14 +207,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSectionTitle(String title) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF6C7C93),
+          color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
           letterSpacing: 0.3,
         ),
       ),
@@ -203,11 +229,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFE0E6EB), width: 1),
+        side: BorderSide(
+          color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
+          width: 1,
+        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -220,7 +250,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withOpacity(isDark ? 0.2 : 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -236,26 +266,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF000000),
+                        color: isDark ? Colors.white : const Color(0xFF000000),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF6C7C93),
+                        color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.arrow_forward_ios,
-                color: Color(0xFF0073E6),
+                color: isDark ? const Color(0xFF4A9EFF) : const Color(0xFF0073E6),
                 size: 20,
               ),
             ],
@@ -273,11 +303,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFE0E6EB), width: 1),
+        side: BorderSide(
+          color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -287,7 +321,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
+                color: iconColor.withOpacity(isDark ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -303,18 +337,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF000000),
+                      color: isDark ? Colors.white : const Color(0xFF000000),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF6C7C93),
+                      color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                     ),
                   ),
                 ],
@@ -337,11 +371,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String title,
     required String subtitle,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFE0E6EB), width: 1),
+        side: BorderSide(
+          color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -351,7 +389,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
+                color: iconColor.withOpacity(isDark ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -367,18 +405,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF000000),
+                      color: isDark ? Colors.white : const Color(0xFF000000),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF6C7C93),
+                      color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                     ),
                   ),
                 ],

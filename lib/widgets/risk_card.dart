@@ -33,6 +33,8 @@ class RiskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -53,7 +55,7 @@ class RiskCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF000000), // Negro de la paleta
+                      color: isDark ? Colors.white : const Color(0xFF000000),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -61,7 +63,7 @@ class RiskCard extends StatelessWidget {
                     'Riesgo de ${prediction.timeFrame}',
                     style: TextStyle(
                       fontSize: 14,
-                      color: const Color(0xFF6C7C93), // Gris de la paleta
+                      color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                     ),
                   ),
                 ],

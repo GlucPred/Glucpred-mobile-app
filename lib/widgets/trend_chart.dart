@@ -11,6 +11,8 @@ class TrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -25,11 +27,12 @@ class TrendChart extends StatelessWidget {
                 size: 28,
               ),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 'Tendencia (12 horas)',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF000000),
                 ),
               ),
               const Spacer(),
@@ -49,14 +52,16 @@ class TrendChart extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            _buildTimeLabels(),
+            _buildTimeLabels(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTimeLabels() {
+  Widget _buildTimeLabels(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: data.map((point) {
@@ -64,7 +69,7 @@ class TrendChart extends StatelessWidget {
           point.time,
           style: TextStyle(
             fontSize: 12,
-            color: const Color(0xFF6C7C93), // Gris de la paleta
+            color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
           ),
         );
       }).toList(),

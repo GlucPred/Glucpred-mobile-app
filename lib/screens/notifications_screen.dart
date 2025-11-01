@@ -63,6 +63,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildTabButton(String label, int index) {
     final isSelected = _selectedTab == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return ElevatedButton(
       onPressed: () {
         setState(() {
@@ -70,14 +72,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         });
       },
       style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? const Color(0xFF0073E6) : Colors.white,
-        foregroundColor: isSelected ? Colors.white : const Color(0xFF6C7C93),
+        backgroundColor: isSelected 
+            ? const Color(0xFF0073E6) 
+            : (isDark ? const Color(0xFF1A1F3A) : Colors.white),
+        foregroundColor: isSelected 
+            ? Colors.white 
+            : (isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93)),
         elevation: isSelected ? 2 : 0,
         padding: const EdgeInsets.symmetric(vertical: 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: BorderSide(
-            color: isSelected ? const Color(0xFF0073E6) : const Color(0xFFE0E6EB),
+            color: isSelected 
+                ? const Color(0xFF0073E6) 
+                : (isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB)),
             width: 1,
           ),
         ),
@@ -93,6 +101,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildAlertCard(_Alert alert) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
@@ -110,10 +120,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 Expanded(
                   child: Text(
                     alert.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF000000),
+                      color: isDark ? Colors.white : const Color(0xFF000000),
                     ),
                   ),
                 ),
@@ -145,48 +155,48 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                const Text(
+                Text(
                   'Hora: ',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF6C7C93),
+                    color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
                   alert.time,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF000000),
+                    color: isDark ? Colors.white : const Color(0xFF000000),
                   ),
                 ),
                 const SizedBox(width: 16),
                 if (alert.value != null) ...[
                   Text(
                     alert.value!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF000000),
+                      color: isDark ? Colors.white : const Color(0xFF000000),
                     ),
                   ),
                 ],
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Recomendaciones:',
               style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF6C7C93),
+                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                 fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               alert.recommendation,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF6C7C93),
+                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
               ),
             ),
           ],
@@ -196,6 +206,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildEmptyState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -206,11 +218,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             color: const Color(0xFF0073E6),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No hay más alertas',
             style: TextStyle(
               fontSize: 16,
-              color: Color(0xFF6C7C93),
+              color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
             ),
           ),
         ],

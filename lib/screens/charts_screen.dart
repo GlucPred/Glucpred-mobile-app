@@ -157,6 +157,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
 
   Widget _buildTabButton(String label, int index) {
     final isSelected = _selectedTab == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Expanded(
       child: ElevatedButton(
         onPressed: () {
@@ -166,14 +168,20 @@ class _ChartsScreenState extends State<ChartsScreen> {
           });
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: isSelected ? const Color(0xFF0073E6) : Colors.white,
-          foregroundColor: isSelected ? Colors.white : Colors.grey,
+          backgroundColor: isSelected 
+              ? const Color(0xFF0073E6) 
+              : (isDark ? const Color(0xFF1A1F3A) : Colors.white),
+          foregroundColor: isSelected 
+              ? Colors.white 
+              : (isDark ? const Color(0xFFB3C3D3) : Colors.grey),
           elevation: isSelected ? 2 : 0,
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
             side: BorderSide(
-              color: isSelected ? const Color(0xFF0073E6) : const Color(0xFFE0E6EB),
+              color: isSelected 
+                  ? const Color(0xFF0073E6) 
+                  : (isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB)),
               width: 1,
             ),
           ),
@@ -211,12 +219,14 @@ class _ChartsScreenState extends State<ChartsScreen> {
   }
 
   Widget _buildLegendItem(String label, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         border: Border.all(color: color, width: 2),
         borderRadius: BorderRadius.circular(8),
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1A1F3A) : Colors.white,
       ),
       child: Row(
         children: [
@@ -234,7 +244,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: const Color(0xFF6C7C93),
+                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                 fontWeight: FontWeight.w500,
               ),
             ),

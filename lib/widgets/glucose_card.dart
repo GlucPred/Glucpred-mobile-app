@@ -22,6 +22,8 @@ class GlucoseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -31,7 +33,7 @@ class GlucoseCard extends StatelessWidget {
               'Glucosa actual',
               style: TextStyle(
                 fontSize: 16,
-                color: const Color(0xFF6C7C93), // Gris de la paleta
+                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -48,7 +50,7 @@ class GlucoseCard extends StatelessWidget {
               'mg/dl',
               style: TextStyle(
                 fontSize: 16,
-                color: const Color(0xFF6C7C93), // Gris de la paleta
+                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
               ),
             ),
             const SizedBox(height: 16),
