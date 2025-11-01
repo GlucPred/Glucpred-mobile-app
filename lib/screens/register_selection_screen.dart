@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'register_patient_screen.dart';
+import 'register_doctor_screen.dart';
 
 class RegisterSelectionScreen extends StatelessWidget {
   const RegisterSelectionScreen({super.key});
@@ -57,9 +59,11 @@ class RegisterSelectionScreen extends StatelessWidget {
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: () {
-                                // TODO: Navegar a pantalla de registro de paciente
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Registro de Paciente - Próximamente')),
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const RegisterPatientScreen(),
+                                  ),
                                 );
                               },
                               style: ElevatedButton.styleFrom(
@@ -94,9 +98,11 @@ class RegisterSelectionScreen extends StatelessWidget {
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: () {
-                                // TODO: Navegar a pantalla de registro de médico
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Registro de Médico - Próximamente')),
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const RegisterDoctorScreen(),
+                                  ),
                                 );
                               },
                               style: ElevatedButton.styleFrom(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/main_navigation.dart';
+import '../widgets/doctor_main_navigation.dart';
 
 class LoginScreen extends StatefulWidget {
   final String role;
@@ -115,11 +116,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           // TODO: Implementar autenticación real más adelante
                           if (_userController.text.isNotEmpty &&
                               _passwordController.text.isNotEmpty) {
-                            // Navegar a la pantalla principal
+                            // Navegar a la pantalla principal según el rol
+                            final Widget destination = widget.role == 'Médico'
+                                ? const DoctorMainNavigation()
+                                : const MainNavigation();
+                            
                             Navigator.pushAndRemoveUntil(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const MainNavigation(),
+                                builder: (context) => destination,
                               ),
                               (route) => false, // Elimina todas las rutas anteriores
                             );

@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
-import 'alert_ranges_screen.dart';
 import 'change_password_screen.dart';
 import 'login_selection_screen.dart';
 import '../main.dart';
 
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+class DoctorSettingsScreen extends StatefulWidget {
+  const DoctorSettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  State<DoctorSettingsScreen> createState() => _DoctorSettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _DoctorSettingsScreenState extends State<DoctorSettingsScreen> {
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
   bool _remindersEnabled = true;
@@ -19,7 +18,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    // Sincronizar con el estado del tema al iniciar
     isDarkModeNotifier.addListener(_updateDarkModeState);
   }
 
@@ -40,6 +38,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Configuración'),
+        automaticallyImplyLeading: false,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -47,23 +46,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Sección: Alertas y Notificaciones
           _buildSectionTitle('Alertas y Notificaciones'),
           const SizedBox(height: 12),
-          
-          _buildNavigationCard(
-            icon: Icons.settings,
-            iconColor: const Color(0xFF0073E6),
-            title: 'Rangos de alerta',
-            subtitle: 'Configurar valores mínimos y máximos.',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AlertRangesScreen(),
-                ),
-              );
-            },
-          ),
-          
-          const SizedBox(height: 8),
           
           _buildSwitchCard(
             icon: Icons.notifications,
@@ -131,19 +113,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           const SizedBox(height: 24),
           
-          // Sección: Dispositivo
-          _buildSectionTitle('Dispositivo'),
-          const SizedBox(height: 12),
-          
-          _buildInfoCard(
-            icon: Icons.battery_full,
-            iconColor: const Color(0xFF0073E6),
-            title: 'Estado del dispositivo',
-            subtitle: 'Batería: 85%',
-          ),
-          
-          const SizedBox(height: 24),
-          
           // Sección: Apariencia
           _buildSectionTitle('Apariencia'),
           const SizedBox(height: 12),
@@ -155,7 +124,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Cambiar tema de la aplicación',
             value: isDarkModeNotifier.value,
             onChanged: (value) {
-              // Cambiar el tema globalmente usando el ValueNotifier
               isDarkModeNotifier.value = value;
               
               ScaffoldMessenger.of(context).showSnackBar(
@@ -366,69 +334,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildInfoCard({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
-          width: 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(isDark ? 0.2 : 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : const Color(0xFF000000),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -466,7 +371,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        // Cerrar el diálogo y navegar a la pantalla de login
                         Navigator.pop(context);
                         Navigator.pushAndRemoveUntil(
                           context,
