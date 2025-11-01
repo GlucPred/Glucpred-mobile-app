@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/main_navigation.dart';
 import '../widgets/doctor_main_navigation.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final String role;
@@ -157,7 +158,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 6),
                     TextButton(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Olvidaste tu contraseña')));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPasswordScreen(),
+                          ),
+                        );
                       },
                       child: const Text('¿Olvidaste tu contraseña?'),
                     ),
