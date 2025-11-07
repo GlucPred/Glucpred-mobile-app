@@ -119,21 +119,23 @@ class GlucoseService {
     return points;
   }
 
-  // Generar datos para MES (30 días - cada 3 días)
+  // Generar datos para MES (últimos 6 meses)
   static List<TrendPoint> getTrendDataForMonth() {
     final now = DateTime.now();
     final points = <TrendPoint>[];
-    final baseValue = 100.0;
+    final months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     
-    for (int i = 0; i < 10; i++) {
-      final daysAgo = 30 - (i * 3);
-      final timestamp = now.subtract(Duration(days: daysAgo));
-      final variation = _random.nextDouble() * 40 - 10;
-      final value = baseValue + variation + (i * 1.5);
+    // Generar datos para los últimos 6 meses
+    final baseValues = [98.0, 105.0, 112.0, 118.0, 128.0, 135.0];
+    
+    for (int i = 0; i < 6; i++) {
+      final monthsAgo = 5 - i;
+      final monthIndex = (now.month - monthsAgo - 1) % 12;
+      final timestamp = DateTime(now.year, now.month - monthsAgo, 1);
       
       points.add(TrendPoint(
-        value: value,
-        time: '${daysAgo}d',
+        value: baseValues[i] + (_random.nextDouble() * 8 - 4),
+        time: months[monthIndex < 0 ? monthIndex + 12 : monthIndex],
         timestamp: timestamp,
       ));
     }

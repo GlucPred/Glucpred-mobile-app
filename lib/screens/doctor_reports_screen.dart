@@ -104,11 +104,11 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> {
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
                 child: Column(
                   children: [
                     SizedBox(
-                      height: 220,
+                      height: 250,
                       child: CustomPaint(
                         painter: _GlucoseChartPainter(_selectedPeriod),
                         child: Container(),
@@ -413,97 +413,119 @@ class _GlucoseChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // Definir límites de la gráfica (dejar espacio para etiquetas)
-    final chartLeft = 35.0;
+    final chartLeft = 50.0; // Espacio para etiquetas del eje Y y "mg/dl"
     final chartTop = 10.0;
-    final chartWidth = size.width - chartLeft - 10;
-    final chartHeight = size.height - 25;
+    final chartRight = 10.0;
+    final chartBottom = 30.0;
+    final chartWidth = size.width - chartLeft - chartRight;
+    final chartHeight = size.height - chartTop - chartBottom;
 
     final paint = Paint()..style = PaintingStyle.fill;
 
-    // Áreas de color con gradiente más suave (de abajo hacia arriba: azul, verde, amarillo, morado/rojo)
-    // Hipoglucemia crítica (<50) - Azul claro
-    final blueRect = Rect.fromLTWH(chartLeft, chartTop + chartHeight * 0.75, chartWidth, chartHeight * 0.25);
-    paint.color = const Color(0xFF87CEEB).withOpacity(0.3);
-    canvas.drawRect(blueRect, paint);
+    // Bandas de color de fondo (de abajo hacia arriba, similar a la Imagen 1)
+    // Escala: 0-200 mg/dL
+    // Hipoglucemia (<70) - Cyan/Azul claro - 0 a 70 (35% inferior del gráfico)
+    final hypoglycemiaHeight = chartHeight * 0.35;
+    final hypoglycemiaRect = Rect.fromLTWH(
+      chartLeft, 
+      chartTop + chartHeight - hypoglycemiaHeight, 
+      chartWidth, 
+      hypoglycemiaHeight
+    );
+    paint.color = const Color(0xFFADD8E6); // Azul claro brillante
+    canvas.drawRect(hypoglycemiaRect, paint);
 
-    // Normal bajo (50-70) - Cyan/Turquesa
-    final cyanRect = Rect.fromLTWH(chartLeft, chartTop + chartHeight * 0.65, chartWidth, chartHeight * 0.10);
-    paint.color = const Color(0xFF40E0D0).withOpacity(0.3);
-    canvas.drawRect(cyanRect, paint);
+    // Normal (70-100) - Verde - 70 a 100 (15% del gráfico)
+    final normalHeight = chartHeight * 0.15;
+    final normalRect = Rect.fromLTWH(
+      chartLeft, 
+      chartTop + chartHeight - hypoglycemiaHeight - normalHeight, 
+      chartWidth, 
+      normalHeight
+    );
+    paint.color = const Color(0xFF90EE90); // Verde claro brillante
+    canvas.drawRect(normalRect, paint);
 
-    // Normal óptimo (70-100) - Verde
-    final greenRect = Rect.fromLTWH(chartLeft, chartTop + chartHeight * 0.50, chartWidth, chartHeight * 0.15);
-    paint.color = const Color(0xFF90EE90).withOpacity(0.4);
-    canvas.drawRect(greenRect, paint);
+    // Precaución (100-140) - Amarillo - 100 a 140 (20% del gráfico)
+    final cautionHeight = chartHeight * 0.20;
+    final cautionRect = Rect.fromLTWH(
+      chartLeft, 
+      chartTop + chartHeight - hypoglycemiaHeight - normalHeight - cautionHeight, 
+      chartWidth, 
+      cautionHeight
+    );
+    paint.color = const Color(0xFFFFD966); // Amarillo brillante
+    canvas.drawRect(cautionRect, paint);
 
-    // Precaución (100-140) - Amarillo
-    final yellowRect = Rect.fromLTWH(chartLeft, chartTop + chartHeight * 0.30, chartWidth, chartHeight * 0.20);
-    paint.color = const Color(0xFFFBC318).withOpacity(0.3);
-    canvas.drawRect(yellowRect, paint);
-
-    // Crítico (>140) - Morado/Rojo
-    final redRect = Rect.fromLTWH(chartLeft, chartTop, chartWidth, chartHeight * 0.30);
-    paint.color = const Color(0xFFB19CD9).withOpacity(0.3);
-    canvas.drawRect(redRect, paint);
+    // Crítico (>140) - Rosa/Rojo claro - 140 a 200 (30% superior del gráfico)
+    final criticalHeight = chartHeight * 0.30;
+    final criticalRect = Rect.fromLTWH(
+      chartLeft, 
+      chartTop, 
+      chartWidth, 
+      criticalHeight
+    );
+    paint.color = const Color(0xFFFFB6C1); // Rosa claro
+    canvas.drawRect(criticalRect, paint);
 
     // Datos de los puntos según el período
     List<Offset> blueLinePoints = [];
     List<Offset> orangeLinePoints = [];
+    List<String> labels = [];
     
-    final labels = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+    // Configurar etiquetas según el período
+    if (period == 'Hoy') {
+      labels = ['0h', '4h', '8h', '12h', '16h', '20h', '24h'];
+    } else if (period == 'Semana') {
+      labels = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+    } else { // Mes
+      labels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'];
+    }
+    
     final pointSpacing = chartWidth / (labels.length - 1);
     
-    // Definir puntos para la línea azul y naranja (valores de ejemplo basados en la imagen)
+    // Función para convertir mg/dL a posición Y (escala 0-200)
+    double mgdlToY(double mgdl) {
+      return chartTop + chartHeight * (1 - (mgdl / 200));
+    }
+    
+    // Definir puntos según el período
     if (period == 'Hoy') {
-      // Línea azul (valores más altos)
-      blueLinePoints = [
-        Offset(chartLeft, chartTop + chartHeight * 0.50), // 100 mg/dL
-        Offset(chartLeft + pointSpacing * 1, chartTop + chartHeight * 0.43), // 115 mg/dL
-        Offset(chartLeft + pointSpacing * 2, chartTop + chartHeight * 0.38), // 122 mg/dL
-        Offset(chartLeft + pointSpacing * 3, chartTop + chartHeight * 0.36), // 128 mg/dL
-        Offset(chartLeft + pointSpacing * 4, chartTop + chartHeight * 0.30), // 145 mg/dL
-        Offset(chartLeft + pointSpacing * 5, chartTop + chartHeight * 0.20), // 170 mg/dL
-        Offset(chartLeft + pointSpacing * 6, chartTop + chartHeight * 0.05), // 195 mg/dL
-      ];
+      // Vista por horas (0h a 24h)
+      final blueValues = [80.0, 95.0, 105.0, 115.0, 130.0, 150.0, 170.0];
+      final orangeValues = [75.0, 88.0, 98.0, 110.0, 125.0, 145.0, 165.0];
       
-      // Línea naranja (valores medios)
-      orangeLinePoints = [
-        Offset(chartLeft, chartTop + chartHeight * 0.52), // 98 mg/dL
-        Offset(chartLeft + pointSpacing * 1, chartTop + chartHeight * 0.45), // 110 mg/dL
-        Offset(chartLeft + pointSpacing * 2, chartTop + chartHeight * 0.40), // 118 mg/dL
-        Offset(chartLeft + pointSpacing * 3, chartTop + chartHeight * 0.38), // 125 mg/dL
-        Offset(chartLeft + pointSpacing * 4, chartTop + chartHeight * 0.32), // 140 mg/dL
-        Offset(chartLeft + pointSpacing * 5, chartTop + chartHeight * 0.22), // 165 mg/dL
-        Offset(chartLeft + pointSpacing * 6, chartTop + chartHeight * 0.08), // 190 mg/dL
-      ];
-    } else {
-      // Usar los mismos puntos para Semana y Mes (puedes ajustar si necesitas)
-      blueLinePoints = [
-        Offset(chartLeft, chartTop + chartHeight * 0.50),
-        Offset(chartLeft + pointSpacing * 1, chartTop + chartHeight * 0.43),
-        Offset(chartLeft + pointSpacing * 2, chartTop + chartHeight * 0.38),
-        Offset(chartLeft + pointSpacing * 3, chartTop + chartHeight * 0.36),
-        Offset(chartLeft + pointSpacing * 4, chartTop + chartHeight * 0.30),
-        Offset(chartLeft + pointSpacing * 5, chartTop + chartHeight * 0.20),
-        Offset(chartLeft + pointSpacing * 6, chartTop + chartHeight * 0.05),
-      ];
+      for (int i = 0; i < labels.length; i++) {
+        blueLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(blueValues[i])));
+        orangeLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(orangeValues[i])));
+      }
+    } else if (period == 'Semana') {
+      // Vista por días (Lun a Dom)
+      final blueValues = [95.0, 110.0, 118.0, 125.0, 135.0, 155.0, 168.0];
+      final orangeValues = [92.0, 105.0, 115.0, 122.0, 132.0, 152.0, 165.0];
       
-      orangeLinePoints = [
-        Offset(chartLeft, chartTop + chartHeight * 0.52),
-        Offset(chartLeft + pointSpacing * 1, chartTop + chartHeight * 0.45),
-        Offset(chartLeft + pointSpacing * 2, chartTop + chartHeight * 0.40),
-        Offset(chartLeft + pointSpacing * 3, chartTop + chartHeight * 0.38),
-        Offset(chartLeft + pointSpacing * 4, chartTop + chartHeight * 0.32),
-        Offset(chartLeft + pointSpacing * 5, chartTop + chartHeight * 0.22),
-        Offset(chartLeft + pointSpacing * 6, chartTop + chartHeight * 0.08),
-      ];
+      for (int i = 0; i < labels.length; i++) {
+        blueLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(blueValues[i])));
+        orangeLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(orangeValues[i])));
+      }
+    } else { // Mes
+      // Vista por semanas (4 semanas)
+      final blueValues = [100.0, 115.0, 128.0, 142.0];
+      final orangeValues = [98.0, 112.0, 125.0, 138.0];
+      
+      for (int i = 0; i < labels.length; i++) {
+        blueLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(blueValues[i])));
+        orangeLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(orangeValues[i])));
+      }
     }
 
     // Dibujar línea azul con puntos
     final blueLinePaint = Paint()
       ..color = const Color(0xFF0073E6)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
 
     final bluePath = Path();
     bluePath.moveTo(blueLinePoints[0].dx, blueLinePoints[0].dy);
@@ -517,21 +539,25 @@ class _GlucoseChartPainter extends CustomPainter {
       ..color = const Color(0xFF0073E6)
       ..style = PaintingStyle.fill;
 
+    final whiteBorderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+
     for (var point in blueLinePoints) {
-      canvas.drawCircle(point, 5, bluePointPaint);
-      // Borde blanco del punto
-      final whiteBorderPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
-      canvas.drawCircle(point, 5, whiteBorderPaint);
+      // Borde blanco primero
+      canvas.drawCircle(point, 6, whiteBorderPaint);
+      // Punto azul encima
+      canvas.drawCircle(point, 4.5, bluePointPaint);
     }
 
     // Dibujar línea naranja con puntos
     final orangeLinePaint = Paint()
       ..color = const Color(0xFFFF8C42)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
 
     final orangePath = Path();
     orangePath.moveTo(orangeLinePoints[0].dx, orangeLinePoints[0].dy);
@@ -546,58 +572,73 @@ class _GlucoseChartPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     for (var point in orangeLinePoints) {
-      canvas.drawCircle(point, 5, orangePointPaint);
-      // Borde blanco del punto
-      final whiteBorderPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
-      canvas.drawCircle(point, 5, whiteBorderPaint);
+      // Borde blanco primero
+      canvas.drawCircle(point, 6, whiteBorderPaint);
+      // Punto naranja encima
+      canvas.drawCircle(point, 4.5, orangePointPaint);
     }
 
     // Etiquetas del eje X
-    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
 
     for (int i = 0; i < labels.length; i++) {
       textPainter.text = TextSpan(
         text: labels[i],
-        style: const TextStyle(color: Color(0xFF6C7C93), fontSize: 11, fontWeight: FontWeight.w500),
+        style: const TextStyle(
+          color: Color(0xFF6C7C93), 
+          fontSize: 10, 
+          fontWeight: FontWeight.w500,
+        ),
       );
       textPainter.layout();
       final xPos = chartLeft + (pointSpacing * i) - (textPainter.width / 2);
+      final yPos = chartTop + chartHeight + 8;
       textPainter.paint(
         canvas,
-        Offset(xPos, chartTop + chartHeight + 5),
+        Offset(xPos, yPos),
       );
     }
 
     // Etiquetas del eje Y (mg/dL)
-    final yLabels = ['200', '150', '100', '50'];
-    final yValues = [0.0, 0.25, 0.5, 0.75]; // Posiciones relativas
+    final yLabels = ['200', '150', '100', '50', '0'];
+    final yValues = [0.0, 0.25, 0.5, 0.75, 1.0]; // Posiciones relativas
     
     for (int i = 0; i < yLabels.length; i++) {
       textPainter.text = TextSpan(
         text: yLabels[i],
-        style: const TextStyle(color: Color(0xFF6C7C93), fontSize: 10),
+        style: const TextStyle(
+          color: Color(0xFF6C7C93), 
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+        ),
       );
       textPainter.layout();
+      final yPos = chartTop + (chartHeight * yValues[i]) - (textPainter.height / 2);
+      // Posicionar números más a la derecha para dejar espacio al texto rotado
       textPainter.paint(
         canvas,
-        Offset(2, chartTop + (chartHeight * yValues[i]) - 5),
+        Offset(22, yPos),
       );
     }
     
-    // Etiqueta "mg/dL" en el eje Y
+    // Etiqueta "mg/dl" en el eje Y (rotada, a la izquierda de los números)
+    canvas.save();
+    final labelYPos = chartTop + (chartHeight / 2);
+    canvas.translate(8, labelYPos); // Más a la izquierda
+    canvas.rotate(-1.5708); // -90 grados en radianes
+    
     textPainter.text = const TextSpan(
-      text: 'mg/dL',
-      style: TextStyle(color: Color(0xFF6C7C93), fontSize: 9, fontWeight: FontWeight.w500),
+      text: 'mg/dl',
+      style: TextStyle(
+        color: Color(0xFF6C7C93), 
+        fontSize: 10, 
+        fontWeight: FontWeight.w600,
+      ),
     );
     textPainter.layout();
-    
-    // Rotar el texto 90 grados
-    canvas.save();
-    canvas.translate(8, size.height / 2);
-    canvas.rotate(-1.5708); // -90 grados en radianes
     textPainter.paint(canvas, Offset(-textPainter.width / 2, 0));
     canvas.restore();
   }

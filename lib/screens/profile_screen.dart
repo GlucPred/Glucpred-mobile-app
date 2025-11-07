@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../config/theme.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -22,6 +24,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _medicationsController = TextEditingController(text: 'Metformina 850 mg');
   final _medicalHistoryController = TextEditingController(text: 'Hipertensión arterial');
   final _diagnosisDateController = TextEditingController(text: '2018');
+
+  // Imagen de perfil
+  File? _profileImage;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -71,6 +77,208 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Si hay error en el cálculo
     }
     return 'N/A';
+  }
+
+  // Mostrar diálogo de opciones de foto
+  Future<void> _showImageSourceDialog() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppTheme.darkCardColor : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Seleccionar foto de perfil',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppTheme.darkTextPrimaryColor : AppTheme.textPrimaryColor,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                  title: Text(
+                    'Tomar foto',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.darkTextPrimaryColor : AppTheme.textPrimaryColor,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.photo_library,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                  title: Text(
+                    'Elegir de galería',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.darkTextPrimaryColor : AppTheme.textPrimaryColor,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+                if (_profileImage != null) ...[
+                  const SizedBox(height: 8),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.dangerColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.delete,
+                        color: AppTheme.dangerColor,
+                      ),
+                    ),
+                    title: Text(
+                      'Eliminar foto',
+                      style: TextStyle(
+                        color: isDark ? AppTheme.darkTextPrimaryColor : AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _deleteProfileImage();
+                    },
+                  ),
+                ],
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Seleccionar imagen de cámara o galería
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      
+      if (image != null) {
+        setState(() {
+          _profileImage = File(image.path);
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Foto de perfil actualizada'),
+              backgroundColor: AppTheme.successColor,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al seleccionar imagen: $e'),
+            backgroundColor: AppTheme.dangerColor,
+          ),
+        );
+      }
+    }
+  }
+
+  // Eliminar foto de perfil
+  void _deleteProfileImage() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? AppTheme.darkCardColor : Colors.white,
+          title: Text(
+            'Eliminar foto de perfil',
+            style: TextStyle(
+              color: isDark ? AppTheme.darkTextPrimaryColor : AppTheme.textPrimaryColor,
+            ),
+          ),
+          content: Text(
+            '¿Estás seguro de que quieres eliminar tu foto de perfil?',
+            style: TextStyle(
+              color: isDark ? AppTheme.darkTextSecondaryColor : AppTheme.textSecondaryColor,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(
+                  color: isDark ? AppTheme.darkTextSecondaryColor : AppTheme.textSecondaryColor,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _profileImage = null;
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Foto de perfil eliminada'),
+                    backgroundColor: AppTheme.successColor,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.dangerColor,
+              ),
+              child: const Text(
+                'Eliminar',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _selectDiagnosisYear() async {
@@ -182,42 +390,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               // Avatar section
               Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: AppTheme.primaryColor,
-                      child: const Text(
-                        'AS',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                child: GestureDetector(
+                  onTap: _showImageSourceDialog,
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: AppTheme.primaryColor,
+                        backgroundImage: _profileImage != null 
+                            ? FileImage(_profileImage!) 
+                            : null,
+                        child: _profileImage == null
+                            ? const Text(
+                                'AS',
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : null,
                       ),
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isDark ? AppTheme.darkBackgroundColor : Colors.white,
-                            width: 2,
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: _showImageSourceDialog,
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark ? AppTheme.darkBackgroundColor : Colors.white,
+                                width: 2,
+                              ),
+                            ),
+                            child: Icon(
+                              _profileImage == null ? Icons.add : Icons.edit,
+                              size: 18,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                        child: const Icon(
-                          Icons.add,
-                          size: 18,
-                          color: Colors.white,
-                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 30),

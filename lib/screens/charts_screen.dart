@@ -95,7 +95,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      GlucoseChartWidget(data: _chartData, period: _selectedTab),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+                        child: GlucoseChartWidget(data: _chartData, period: _selectedTab),
+                      ),
                       const SizedBox(height: 20),
                       _buildLegend(),
                     ],
