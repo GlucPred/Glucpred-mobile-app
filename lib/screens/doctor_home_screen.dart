@@ -273,7 +273,7 @@ class DoctorHomeScreen extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.description, color: Color(0xFF0073E6)),
+            icon: const Icon(Icons.search, color: Color(0xFF0073E6)),
             iconSize: 20,
             onPressed: () {
               Navigator.push(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'medical_observations_screen.dart';
+import '../services/glucose_service.dart';
+import '../models/trend_point.dart';
 
 class PatientDetailScreen extends StatefulWidget {
   final String patientName;
@@ -20,6 +22,29 @@ class PatientDetailScreen extends StatefulWidget {
 class _PatientDetailScreenState extends State<PatientDetailScreen> {
   String _selectedPeriod = 'Hoy';
   final TextEditingController _observationController = TextEditingController();
+  List<TrendPoint> _trendData = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrendData();
+  }
+
+  void _loadTrendData() {
+    setState(() {
+      switch (_selectedPeriod) {
+        case 'Hoy':
+          _trendData = GlucoseService.getTrendDataForToday();
+          break;
+        case 'Semana':
+          _trendData = GlucoseService.getTrendDataForWeek();
+          break;
+        case 'Mes':
+          _trendData = GlucoseService.getTrendDataForMonth();
+          break;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -266,13 +291,15 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Gráfica (simplificada)
+                    // Gráfica con datos dinámicos
                     SizedBox(
                       height: 200,
-                      child: CustomPaint(
-                        painter: _TrendChartPainter(),
-                        child: Container(),
-                      ),
+                      child: _trendData.isEmpty
+                          ? const Center(child: CircularProgressIndicator())
+                          : CustomPaint(
+                              painter: _TrendChartPainter(_trendData),
+                              child: Container(),
+                            ),
                     ),
                   ],
                 ),
@@ -494,6 +521,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           setState(() {
             _selectedPeriod = label;
           });
+          _loadTrendData();
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: isSelected ? const Color(0xFF0073E6) : Colors.transparent,
@@ -516,61 +544,188 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   }
 }
 
-// Painter simple para la gráfica de tendencia
+// Painter para la gráfica de tendencia con datos dinámicos
 class _TrendChartPainter extends CustomPainter {
+  final List<TrendPoint> data;
+
+  _TrendChartPainter(this.data);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.fill;
+    if (data.isEmpty) return;
 
-    // Áreas de color (rojo, amarillo, verde)
-    final redRect = Rect.fromLTWH(0, 0, size.width, size.height * 0.2);
-    paint.color = const Color(0xFFC72331).withOpacity(0.3);
-    canvas.drawRect(redRect, paint);
+    // Márgenes para que todo quepa dentro del contenedor
+    const double chartLeft = 50.0;
+    const double chartTop = 10.0;
+    const double chartRight = 10.0;
+    const double chartBottom = 30.0;
 
-    final yellowRect = Rect.fromLTWH(0, size.height * 0.2, size.width, size.height * 0.5);
-    paint.color = const Color(0xFFFBC318).withOpacity(0.3);
-    canvas.drawRect(yellowRect, paint);
+    final chartWidth = size.width - chartLeft - chartRight;
+    final chartHeight = size.height - chartTop - chartBottom;
 
-    final greenRect = Rect.fromLTWH(0, size.height * 0.7, size.width, size.height * 0.3);
-    paint.color = const Color(0xFF337536).withOpacity(0.3);
-    canvas.drawRect(greenRect, paint);
+    // Rangos de glucosa
+    const double minGlucose = 0.0;
+    const double maxGlucose = 300.0;
+    
+    // Niveles de zona
+    const double normalLowLevel = 70.0;
+    const double normalHighLevel = 180.0;
+    const double hyperglycemiaLevel = 250.0;
 
-    // Línea de tendencia (simplificada)
-    final linePaint = Paint()
-      ..color = const Color(0xFF0073E6)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
+    // Convertir niveles a coordenadas Y
+    double glucoseToY(double glucose) {
+      final ratio = (glucose - minGlucose) / (maxGlucose - minGlucose);
+      return chartTop + chartHeight - (ratio * chartHeight);
+    }
 
-    final path = Path();
-    path.moveTo(0, size.height * 0.6);
-    path.lineTo(size.width * 0.2, size.height * 0.5);
-    path.lineTo(size.width * 0.4, size.height * 0.45);
-    path.lineTo(size.width * 0.6, size.height * 0.35);
-    path.lineTo(size.width * 0.8, size.height * 0.3);
-    path.lineTo(size.width, size.height * 0.25);
+    // Dibujar bandas de color (COLORES VIVOS Y SÓLIDOS)
+    final paint = Paint()..style = PaintingStyle.fill;
 
-    canvas.drawPath(path, linePaint);
-
-    // Etiquetas del eje X
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
+    // Banda rosa crítica superior (250-300)
+    paint.color = const Color(0xFFFFB6C1); // Rosa vivo
+    canvas.drawRect(
+      Rect.fromLTRB(
+        chartLeft,
+        chartTop,
+        chartLeft + chartWidth,
+        glucoseToY(hyperglycemiaLevel),
+      ),
+      paint,
     );
 
-    final labels = ['0h', '4h', '8h', '12h', '16h', '20h', '24h'];
-    for (int i = 0; i < labels.length; i++) {
+    // Banda amarilla precaución (180-250)
+    paint.color = const Color(0xFFFFD966); // Amarillo vivo
+    canvas.drawRect(
+      Rect.fromLTRB(
+        chartLeft,
+        glucoseToY(hyperglycemiaLevel),
+        chartLeft + chartWidth,
+        glucoseToY(normalHighLevel),
+      ),
+      paint,
+    );
+
+    // Banda verde normal (70-180)
+    paint.color = const Color(0xFF90EE90); // Verde vivo
+    canvas.drawRect(
+      Rect.fromLTRB(
+        chartLeft,
+        glucoseToY(normalHighLevel),
+        chartLeft + chartWidth,
+        glucoseToY(normalLowLevel),
+      ),
+      paint,
+    );
+
+    // Banda cyan hipoglucemia (0-70)
+    paint.color = const Color(0xFFADD8E6); // Cyan vivo
+    canvas.drawRect(
+      Rect.fromLTRB(
+        chartLeft,
+        glucoseToY(normalLowLevel),
+        chartLeft + chartWidth,
+        chartTop + chartHeight,
+      ),
+      paint,
+    );
+
+    // Dibujar líneas de referencia de glucosa
+    final linePaint = Paint()
+      ..color = Colors.white.withOpacity(0.3)
+      ..strokeWidth = 1;
+
+    final levels = [0, 50, 100, 150, 200, 250, 300];
+    for (final level in levels) {
+      final y = glucoseToY(level.toDouble());
+      canvas.drawLine(
+        Offset(chartLeft, y),
+        Offset(chartLeft + chartWidth, y),
+        linePaint,
+      );
+    }
+
+    // Dibujar etiquetas del eje Y (mg/dl)
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    
+    // Etiqueta "mg/dl" en la parte superior
+    textPainter.text = const TextSpan(
+      text: 'mg/dl',
+      style: TextStyle(color: Color(0xFF6C7C93), fontSize: 10, fontWeight: FontWeight.w600),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(8, chartTop));
+
+    // Números del eje Y
+    for (final level in levels) {
+      final y = glucoseToY(level.toDouble());
       textPainter.text = TextSpan(
-        text: labels[i],
+        text: level.toString(),
         style: const TextStyle(color: Color(0xFF6C7C93), fontSize: 10),
       );
       textPainter.layout();
+      textPainter.paint(canvas, Offset(22, y - 6));
+    }
+
+    // Dibujar la línea de tendencia
+    if (data.length > 1) {
+      final path = Path();
+      final linePaint = Paint()
+        ..color = const Color(0xFF0073E6)
+        ..strokeWidth = 3
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      // Calcular posiciones de los puntos
+      for (int i = 0; i < data.length; i++) {
+        final x = chartLeft + (chartWidth / (data.length - 1)) * i;
+        final y = glucoseToY(data[i].value);
+
+        if (i == 0) {
+          path.moveTo(x, y);
+        } else {
+          path.lineTo(x, y);
+        }
+      }
+
+      canvas.drawPath(path, linePaint);
+
+      // Dibujar puntos de datos (círculos)
+      final pointPaint = Paint()
+        ..color = const Color(0xFF0073E6)
+        ..style = PaintingStyle.fill;
+
+      final pointBorderPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+
+      for (int i = 0; i < data.length; i++) {
+        final x = chartLeft + (chartWidth / (data.length - 1)) * i;
+        final y = glucoseToY(data[i].value);
+
+        // Círculo blanco de borde
+        canvas.drawCircle(Offset(x, y), 5, pointBorderPaint);
+        // Círculo azul interior
+        canvas.drawCircle(Offset(x, y), 4, pointPaint);
+      }
+    }
+
+    // Dibujar etiquetas del eje X
+    for (int i = 0; i < data.length; i++) {
+      textPainter.text = TextSpan(
+        text: data[i].time,
+        style: const TextStyle(color: Color(0xFF6C7C93), fontSize: 10),
+      );
+      textPainter.layout();
+      final x = chartLeft + (chartWidth / (data.length - 1)) * i;
       textPainter.paint(
         canvas,
-        Offset((size.width / (labels.length - 1)) * i - 10, size.height + 5),
+        Offset(x - textPainter.width / 2, chartTop + chartHeight + 5),
       );
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
