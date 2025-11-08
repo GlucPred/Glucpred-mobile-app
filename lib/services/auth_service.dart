@@ -236,4 +236,78 @@ class AuthService {
       };
     }
   }
+
+  // Obtener perfil del usuario (GET /api/profile)
+  static Future<Map<String, dynamic>> getProfile() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$_baseUrl/api/profile');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'user': data['user'],
+          'profile': data['profile'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al obtener perfil',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}',
+      };
+    }
+  }
+
+  // Actualizar perfil del usuario (PUT /api/profile)
+  // Solo envía los campos que se modificaron
+  static Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$_baseUrl/api/profile');
+
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Perfil actualizado correctamente',
+          'data': data,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al actualizar perfil',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}',
+      };
+    }
+  }
 }

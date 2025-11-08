@@ -51,5 +51,11 @@
 	<string>Necesitamos acceso a tus fotos para seleccionar tu foto de perfil</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Necesitamos acceso para guardar fotos en tu galería</string>
+	<!-- Permitir conexiones HTTP en desarrollo -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
