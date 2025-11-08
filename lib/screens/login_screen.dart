@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import '../widgets/main_navigation.dart';
 import '../widgets/doctor_main_navigation.dart';
+import 'complete_patient_profile_screen.dart';
+import 'complete_doctor_profile_screen.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -15,12 +18,101 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscure = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _userController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    if (_userController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor ingresa usuario y contraseña'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final result = await AuthService.login(
+        username: _userController.text,
+        password: _passwordController.text,
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result['success']) {
+        if (!mounted) return;
+
+        // Verificar si es primer inicio (manejar ambos nombres del campo)
+        final user = result['user'];
+        final bool esPrimerInicio = user['es_primer_inicio'] ?? user['primer_inicio_sesion'] ?? false;
+        final String rol = user['rol'] ?? '';
+
+        if (esPrimerInicio) {
+          // Redirigir a completar perfil según el rol
+          Widget destination;
+          if (rol == 'Medico') {
+            destination = const CompleteDoctorProfileScreen();
+          } else {
+            destination = const CompletePatientProfileScreen();
+          }
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => destination),
+            (route) => false,
+          );
+        } else {
+          // Navegar a la pantalla principal según el rol
+          Widget destination;
+          if (rol == 'Medico') {
+            destination = const DoctorMainNavigation();
+          } else {
+            destination = const MainNavigation();
+          }
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => destination),
+            (route) => false,
+          );
+        }
+      } else {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Error al iniciar sesión'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error inesperado: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -89,7 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () {
+                        onPressed: _isLoading ? null : () {
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Iniciar con Google')));
                         },
                         icon: Container(
@@ -112,52 +204,36 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          // Credenciales temporales para pruebas
-                          // TODO: Implementar autenticación real más adelante
-                          if (_userController.text.isNotEmpty &&
-                              _passwordController.text.isNotEmpty) {
-                            // Navegar a la pantalla principal según el rol
-                            final Widget destination = widget.role == 'Médico'
-                                ? const DoctorMainNavigation()
-                                : const MainNavigation();
-                            
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => destination,
-                              ),
-                              (route) => false, // Elimina todas las rutas anteriores
-                            );
-                          } else {
-                            // Mostrar mensaje si los campos están vacíos
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Por favor ingresa usuario y contraseña'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
+                        onPressed: _isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0073E6),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          disabledBackgroundColor: const Color(0xFF0073E6).withOpacity(0.6),
                         ),
-                        child: const Text('Iniciar sesión'),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text('Iniciar sesión'),
                       ),
                     ),
 
                     const SizedBox(height: 12),
                     TextButton(
-                      onPressed: () {
+                      onPressed: _isLoading ? null : () {
                         Navigator.pop(context);
                       },
                       child: const Text('Volver al inicio'),
                     ),
                     const SizedBox(height: 6),
                     TextButton(
-                      onPressed: () {
+                      onPressed: _isLoading ? null : () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(

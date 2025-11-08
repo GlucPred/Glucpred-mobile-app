@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import '../widgets/doctor_main_navigation.dart';
+import 'complete_doctor_profile_screen.dart';
 
 class RegisterDoctorScreen extends StatefulWidget {
   const RegisterDoctorScreen({super.key});
@@ -10,27 +12,126 @@ class RegisterDoctorScreen extends StatefulWidget {
 
 class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
   final TextEditingController _nombreCompletoController = TextEditingController();
-  final TextEditingController _usuarioCorreoController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _celularController = TextEditingController();
   final TextEditingController _contrasenaController = TextEditingController();
   final TextEditingController _confirmarContrasenaController = TextEditingController();
-  final TextEditingController _colegiaturaController = TextEditingController();
-  final TextEditingController _especialidadController = TextEditingController();
   
-  String? _centroTrabajo;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _nombreCompletoController.dispose();
-    _usuarioCorreoController.dispose();
+    _usernameController.dispose();
+    _emailController.dispose();
     _celularController.dispose();
     _contrasenaController.dispose();
     _confirmarContrasenaController.dispose();
-    _colegiaturaController.dispose();
-    _especialidadController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleRegister() async {
+    // Validar campos
+    if (_nombreCompletoController.text.isEmpty ||
+        _usernameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _celularController.text.isEmpty ||
+        _contrasenaController.text.isEmpty ||
+        _confirmarContrasenaController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor completa todos los campos obligatorios'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validar que las contraseñas coincidan
+    if (_contrasenaController.text != _confirmarContrasenaController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Las contraseñas no coinciden'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final result = await AuthService.register(
+        nombreCompleto: _nombreCompletoController.text,
+        username: _usernameController.text,
+        email: _emailController.text,
+        numeroCelular: _celularController.text,
+        password: _contrasenaController.text,
+        confirmarPassword: _confirmarContrasenaController.text,
+        rol: 'Medico',
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result['success']) {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? '¡Cuenta de médico creada exitosamente!'),
+            backgroundColor: const Color(0xFF337536),
+          ),
+        );
+
+        // Verificar si es primer inicio (manejar ambos nombres del campo)
+        final user = result['user'];
+        final bool esPrimerInicio = user['es_primer_inicio'] ?? user['primer_inicio_sesion'] ?? false;
+
+        Widget destination;
+        if (esPrimerInicio) {
+          // Redirigir a completar perfil
+          destination = const CompleteDoctorProfileScreen();
+        } else {
+          // Navegar a la pantalla principal del médico
+          destination = const DoctorMainNavigation();
+        }
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+          (route) => false,
+        );
+      } else {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Error al crear la cuenta'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error inesperado: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -71,10 +172,19 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
             const SizedBox(height: 16),
 
             _buildTextField(
-              controller: _usuarioCorreoController,
-              label: 'Usuario o correo electrónico',
-              hint: 'Ingresar usuario o correo electrónico',
+              controller: _usernameController,
+              label: 'Usuario',
+              hint: 'Ingresar nombre de usuario',
               isDark: isDark,
+            ),
+            const SizedBox(height: 16),
+
+            _buildTextField(
+              controller: _emailController,
+              label: 'Correo electrónico',
+              hint: 'Ingresar correo electrónico',
+              isDark: isDark,
+              keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
 
@@ -117,91 +227,11 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
             ),
             const SizedBox(height: 40),
 
-            // Sección: Datos del médico
-            _buildSectionTitle('Datos del médico', 'Ingresar tus datos', isDark),
-            const SizedBox(height: 20),
-
-            _buildTextField(
-              controller: _colegiaturaController,
-              label: 'Número de colegiatura',
-              hint: 'Ingresar número de colegiatura',
-              isDark: isDark,
-            ),
-            const SizedBox(height: 16),
-
-            _buildTextField(
-              controller: _especialidadController,
-              label: 'Especialidad',
-              hint: 'Ingresar especialidad',
-              isDark: isDark,
-            ),
-            const SizedBox(height: 16),
-
-            _buildDropdownField(
-              label: 'Centro de trabajo',
-              hint: 'Ingresar centro de trabajo',
-              value: _centroTrabajo,
-              items: ['Clínica', 'Hospital'],
-              onChanged: (value) {
-                setState(() {
-                  _centroTrabajo = value;
-                });
-              },
-              isDark: isDark,
-            ),
-            const SizedBox(height: 40),
-
             // Botón de crear cuenta
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  // Validar campos
-                  if (_nombreCompletoController.text.isEmpty ||
-                      _usuarioCorreoController.text.isEmpty ||
-                      _celularController.text.isEmpty ||
-                      _contrasenaController.text.isEmpty ||
-                      _confirmarContrasenaController.text.isEmpty ||
-                      _colegiaturaController.text.isEmpty ||
-                      _especialidadController.text.isEmpty ||
-                      _centroTrabajo == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Por favor completa todos los campos obligatorios'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  // Validar que las contraseñas coincidan
-                  if (_contrasenaController.text != _confirmarContrasenaController.text) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Las contraseñas no coinciden'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  // TODO: Implementar lógica de registro real más adelante
-                  // Por ahora, navegar a la pantalla principal
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('¡Cuenta de médico creada exitosamente!'),
-                      backgroundColor: Color(0xFF337536),
-                    ),
-                  );
-
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const DoctorMainNavigation(),
-                    ),
-                    (route) => false,
-                  );
-                },
+                onPressed: _isLoading ? null : _handleRegister,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0073E6),
                   foregroundColor: Colors.white,
@@ -210,14 +240,24 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
                     borderRadius: BorderRadius.circular(30),
                   ),
                   elevation: 0,
+                  disabledBackgroundColor: const Color(0xFF0073E6).withOpacity(0.6),
                 ),
-                child: const Text(
-                  'Crear cuenta',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Crear cuenta',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 20),
@@ -333,69 +373,6 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
                     onPressed: onToggleVisibility,
                   )
                 : null,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDropdownField({
-    required String label,
-    required String hint,
-    required String? value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-    required bool isDark,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1A1F3A) : const Color(0xFFF9FAFB),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value,
-              hint: Text(
-                hint,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: isDark ? const Color(0xFF6C7C93) : const Color(0xFFB3C3D3),
-                ),
-              ),
-              isExpanded: true,
-              icon: Icon(
-                Icons.arrow_drop_down,
-                color: isDark ? const Color(0xFF6C7C93) : const Color(0xFF6C7C93),
-              ),
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-              dropdownColor: isDark ? const Color(0xFF1A1F3A) : Colors.white,
-              items: items.map((String item) {
-                return DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item),
-                );
-              }).toList(),
-              onChanged: onChanged,
-            ),
           ),
         ),
       ],

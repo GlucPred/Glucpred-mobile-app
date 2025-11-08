@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import '../widgets/main_navigation.dart';
+import 'complete_patient_profile_screen.dart';
 
 class RegisterPatientScreen extends StatefulWidget {
   const RegisterPatientScreen({super.key});
@@ -10,65 +12,125 @@ class RegisterPatientScreen extends StatefulWidget {
 
 class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   final TextEditingController _nombreCompletoController = TextEditingController();
-  final TextEditingController _usuarioCorreoController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _celularController = TextEditingController();
   final TextEditingController _contrasenaController = TextEditingController();
   final TextEditingController _confirmarContrasenaController = TextEditingController();
-  final TextEditingController _edadController = TextEditingController();
-  final TextEditingController _pesoController = TextEditingController();
-  final TextEditingController _alturaController = TextEditingController();
-  final TextEditingController _medicamentosController = TextEditingController();
-  final TextEditingController _antecedentesController = TextEditingController();
-  final TextEditingController _fechaDiagnosticoController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _nombreCompletoController.dispose();
-    _usuarioCorreoController.dispose();
+    _usernameController.dispose();
+    _emailController.dispose();
     _celularController.dispose();
     _contrasenaController.dispose();
     _confirmarContrasenaController.dispose();
-    _edadController.dispose();
-    _pesoController.dispose();
-    _alturaController.dispose();
-    _medicamentosController.dispose();
-    _antecedentesController.dispose();
-    _fechaDiagnosticoController.dispose();
     super.dispose();
   }
 
-  void _showYearPickerDialog() async {
-    final currentYear = DateTime.now().year;
-    final selectedYear = await showDialog<int>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Seleccionar año de diagnóstico'),
-          content: SizedBox(
-            width: 300,
-            height: 300,
-            child: YearPicker(
-              firstDate: DateTime(1900),
-              lastDate: DateTime(currentYear),
-              selectedDate: _fechaDiagnosticoController.text.isNotEmpty
-                  ? DateTime(int.parse(_fechaDiagnosticoController.text))
-                  : DateTime(currentYear),
-              onChanged: (DateTime dateTime) {
-                Navigator.pop(context, dateTime.year);
-              },
-            ),
+  Future<void> _handleRegister() async {
+    // Validar campos
+    if (_nombreCompletoController.text.isEmpty ||
+        _usernameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _celularController.text.isEmpty ||
+        _contrasenaController.text.isEmpty ||
+        _confirmarContrasenaController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor completa todos los campos obligatorios'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validar que las contraseñas coincidan
+    if (_contrasenaController.text != _confirmarContrasenaController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Las contraseñas no coinciden'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final result = await AuthService.register(
+        nombreCompleto: _nombreCompletoController.text,
+        username: _usernameController.text,
+        email: _emailController.text,
+        numeroCelular: _celularController.text,
+        password: _contrasenaController.text,
+        confirmarPassword: _confirmarContrasenaController.text,
+        rol: 'Paciente',
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result['success']) {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? '¡Cuenta creada exitosamente!'),
+            backgroundColor: const Color(0xFF337536),
           ),
         );
-      },
-    );
 
-    if (selectedYear != null) {
+        // Verificar si es primer inicio (manejar ambos nombres del campo)
+        final user = result['user'];
+        final bool esPrimerInicio = user['es_primer_inicio'] ?? user['primer_inicio_sesion'] ?? false;
+
+        Widget destination;
+        if (esPrimerInicio) {
+          // Redirigir a completar perfil
+          destination = const CompletePatientProfileScreen();
+        } else {
+          // Navegar a la pantalla principal
+          destination = const MainNavigation();
+        }
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+          (route) => false,
+        );
+      } else {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Error al crear la cuenta'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
       setState(() {
-        _fechaDiagnosticoController.text = selectedYear.toString();
+        _isLoading = false;
       });
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error inesperado: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -110,10 +172,19 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             const SizedBox(height: 16),
 
             _buildTextField(
-              controller: _usuarioCorreoController,
-              label: 'Usuario o correo electrónico',
-              hint: 'Ingresar usuario o correo electrónico',
+              controller: _usernameController,
+              label: 'Usuario',
+              hint: 'Ingresar nombre de usuario',
               isDark: isDark,
+            ),
+            const SizedBox(height: 16),
+
+            _buildTextField(
+              controller: _emailController,
+              label: 'Correo electrónico',
+              hint: 'Ingresar correo electrónico',
+              isDark: isDark,
+              keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
 
@@ -156,112 +227,11 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             ),
             const SizedBox(height: 40),
 
-            // Sección: Datos del paciente
-            _buildSectionTitle('Datos del paciente', 'Ingresar tus datos', isDark),
-            const SizedBox(height: 20),
-
-            _buildTextField(
-              controller: _edadController,
-              label: 'Edad',
-              hint: 'Ingresar edad',
-              isDark: isDark,
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-
-            _buildTextField(
-              controller: _pesoController,
-              label: 'Peso',
-              hint: 'Ingresar peso',
-              isDark: isDark,
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-
-            _buildTextField(
-              controller: _alturaController,
-              label: 'Altura',
-              hint: 'Ingresar altura ( para cálculo de IMC)',
-              isDark: isDark,
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-
-            _buildTextField(
-              controller: _medicamentosController,
-              label: 'Medicamentos',
-              hint: 'Ingresar medicamentos actuales',
-              isDark: isDark,
-            ),
-            const SizedBox(height: 16),
-
-            _buildTextField(
-              controller: _antecedentesController,
-              label: 'Antecedentes',
-              hint: 'Ingresar antecedentes',
-              isDark: isDark,
-            ),
-            const SizedBox(height: 16),
-
-            _buildTextField(
-              controller: _fechaDiagnosticoController,
-              label: 'Fecha de diagnóstico',
-              hint: 'Ingresar fecha de diagnóstico',
-              isDark: isDark,
-              readOnly: true,
-              onTap: _showYearPickerDialog,
-              suffixIcon: Icons.calendar_today,
-            ),
-            const SizedBox(height: 40),
-
             // Botón de crear cuenta
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  // Validar campos
-                  if (_nombreCompletoController.text.isEmpty ||
-                      _usuarioCorreoController.text.isEmpty ||
-                      _celularController.text.isEmpty ||
-                      _contrasenaController.text.isEmpty ||
-                      _confirmarContrasenaController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Por favor completa todos los campos obligatorios'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  // Validar que las contraseñas coincidan
-                  if (_contrasenaController.text != _confirmarContrasenaController.text) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Las contraseñas no coinciden'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  // TODO: Implementar lógica de registro real más adelante
-                  // Por ahora, navegar a la pantalla principal
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('¡Cuenta creada exitosamente!'),
-                      backgroundColor: Color(0xFF337536),
-                    ),
-                  );
-
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const MainNavigation(),
-                    ),
-                    (route) => false,
-                  );
-                },
+                onPressed: _isLoading ? null : _handleRegister,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0073E6),
                   foregroundColor: Colors.white,
@@ -270,14 +240,24 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                     borderRadius: BorderRadius.circular(30),
                   ),
                   elevation: 0,
+                  disabledBackgroundColor: const Color(0xFF0073E6).withOpacity(0.6),
                 ),
-                child: const Text(
-                  'Crear cuenta',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Crear cuenta',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 20),
