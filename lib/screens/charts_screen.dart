@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../widgets/glucose_chart_widget.dart';
 import '../services/glucose_service.dart';
+import '../services/auth_service.dart';
 import '../models/trend_point.dart';
 
 class ChartsScreen extends StatefulWidget {
@@ -48,11 +52,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.download, color: Color(0xFF0073E6)),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Descargar reporte')),
-              );
-            },
+            onPressed: () => _generatePdfReport(),
+            tooltip: 'Descargar reporte PDF',
           ),
         ],
       ),
@@ -310,5 +311,552 @@ class _ChartsScreenState extends State<ChartsScreen> {
       'min': min,
       'max': max,
     };
+  }
+
+  String _getPeriodName() {
+    switch (_selectedTab) {
+      case 0:
+        return 'Hoy';
+      case 1:
+        return 'Semana';
+      case 2:
+        return 'Mes';
+      default:
+        return 'Hoy';
+    }
+  }
+
+  Future<void> _generatePdfReport() async {
+    final stats = _calculateStats();
+    final pdf = pw.Document();
+    
+    // Obtener datos del paciente
+    final profileResult = await AuthService.getProfile();
+    String patientName = 'Paciente';
+    String patientAge = 'N/A';
+    String patientWeight = 'N/A';
+    String patientHeight = 'N/A';
+    String patientIMC = 'N/A';
+    
+    if (profileResult['success']) {
+      final user = profileResult['user'];
+      final profile = profileResult['profile'];
+      
+      patientName = user['nombre_completo'] ?? 'Paciente';
+      patientAge = profile['edad']?.toString() ?? 'N/A';
+      patientWeight = profile['peso']?.toString() ?? 'N/A';
+      patientHeight = profile['altura']?.toString() ?? 'N/A';
+      
+      // Calcular IMC si hay datos
+      if (profile['peso'] != null && profile['altura'] != null) {
+        final peso = profile['peso'].toDouble();
+        final altura = profile['altura'].toDouble();
+        if (altura > 0) {
+          final imc = peso / (altura * altura);
+          patientIMC = imc.toStringAsFixed(1);
+        }
+      }
+    }
+    
+    // Obtener fecha actual
+    final now = DateTime.now();
+    final dateStr = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        build: (pw.Context context) {
+          return [
+            // Encabezado
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'GlucPred',
+                          style: pw.TextStyle(
+                            fontSize: 28,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromHex('#0073E6'),
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          'Reporte de Glucosa',
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            color: PdfColor.fromHex('#6C7C93'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text(
+                          'Fecha: $dateStr',
+                          style: const pw.TextStyle(fontSize: 12),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Hora: $timeStr',
+                          style: const pw.TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 8),
+                pw.Divider(thickness: 2, color: PdfColor.fromHex('#0073E6')),
+                pw.SizedBox(height: 20),
+
+                // Información del Paciente
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#F9FAFB'),
+                    borderRadius: pw.BorderRadius.circular(8),
+                    border: pw.Border.all(
+                      color: PdfColor.fromHex('#E0E6EB'),
+                      width: 1,
+                    ),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(
+                        children: [
+                          pw.Icon(
+                            pw.IconData(0xe491), // person icon
+                            size: 20,
+                            color: PdfColor.fromHex('#0073E6'),
+                          ),
+                          pw.SizedBox(width: 8),
+                          pw.Text(
+                            'Información del Paciente',
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromHex('#0073E6'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 12),
+                      pw.Row(
+                        children: [
+                          pw.Expanded(
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.Text(
+                                  'Nombre:',
+                                  style: pw.TextStyle(
+                                    fontSize: 10,
+                                    color: PdfColor.fromHex('#6C7C93'),
+                                  ),
+                                ),
+                                pw.SizedBox(height: 4),
+                                pw.Text(
+                                  patientName,
+                                  style: pw.TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          pw.SizedBox(width: 16),
+                          pw.Expanded(
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.Text(
+                                  'Edad:',
+                                  style: pw.TextStyle(
+                                    fontSize: 10,
+                                    color: PdfColor.fromHex('#6C7C93'),
+                                  ),
+                                ),
+                                pw.SizedBox(height: 4),
+                                pw.Text(
+                                  '$patientAge años',
+                                  style: pw.TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 12),
+                      pw.Row(
+                        children: [
+                          pw.Expanded(
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.Text(
+                                  'Peso:',
+                                  style: pw.TextStyle(
+                                    fontSize: 10,
+                                    color: PdfColor.fromHex('#6C7C93'),
+                                  ),
+                                ),
+                                pw.SizedBox(height: 4),
+                                pw.Text(
+                                  '$patientWeight kg',
+                                  style: pw.TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          pw.SizedBox(width: 16),
+                          pw.Expanded(
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.Text(
+                                  'Altura:',
+                                  style: pw.TextStyle(
+                                    fontSize: 10,
+                                    color: PdfColor.fromHex('#6C7C93'),
+                                  ),
+                                ),
+                                pw.SizedBox(height: 4),
+                                pw.Text(
+                                  '$patientHeight m',
+                                  style: pw.TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          pw.SizedBox(width: 16),
+                          pw.Expanded(
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.Text(
+                                  'IMC:',
+                                  style: pw.TextStyle(
+                                    fontSize: 10,
+                                    color: PdfColor.fromHex('#6C7C93'),
+                                  ),
+                                ),
+                                pw.SizedBox(height: 4),
+                                pw.Text(
+                                  patientIMC,
+                                  style: pw.TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+
+                // Información del período
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#F0F7FF'),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Row(
+                    children: [
+                      pw.Icon(
+                        pw.IconData(0xe190), // calendar_today
+                        size: 24,
+                        color: PdfColor.fromHex('#0073E6'),
+                      ),
+                      pw.SizedBox(width: 12),
+                      pw.Text(
+                        'Período: ${_getPeriodName()}',
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 24),
+
+                // Título de estadísticas
+                pw.Text(
+                  'Estadísticas de Glucosa',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+
+                // Tabla de estadísticas
+                pw.Table(
+                  border: pw.TableBorder.all(
+                    color: PdfColor.fromHex('#E0E6EB'),
+                    width: 1,
+                  ),
+                  children: [
+                    // Encabezado de tabla
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#0073E6'),
+                      ),
+                      children: [
+                        _buildTableCell('Métrica', isHeader: true),
+                        _buildTableCell('Valor', isHeader: true),
+                        _buildTableCell('Unidad', isHeader: true),
+                        _buildTableCell('Estado', isHeader: true),
+                      ],
+                    ),
+                    // Promedio
+                    pw.TableRow(
+                      children: [
+                        _buildTableCell('Promedio de glucosa'),
+                        _buildTableCell('${stats['average']}', isBold: true),
+                        _buildTableCell('mg/dl'),
+                        _buildTableCell(_getStatusForValue(stats['average']!)),
+                      ],
+                    ),
+                    // Porcentaje en rango
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#F9FAFB'),
+                      ),
+                      children: [
+                        _buildTableCell('Porcentaje en rango'),
+                        _buildTableCell('${stats['inRange']}%', isBold: true),
+                        _buildTableCell('del tiempo'),
+                        _buildTableCell(
+                          stats['inRange']! >= 70 ? 'Excelente' : stats['inRange']! >= 50 ? 'Bueno' : 'Necesita mejora',
+                        ),
+                      ],
+                    ),
+                    // Mínimo
+                    pw.TableRow(
+                      children: [
+                        _buildTableCell('Valor mínimo'),
+                        _buildTableCell('${stats['min']}', isBold: true),
+                        _buildTableCell('mg/dl'),
+                        _buildTableCell(_getStatusForValue(stats['min']!)),
+                      ],
+                    ),
+                    // Máximo
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#F9FAFB'),
+                      ),
+                      children: [
+                        _buildTableCell('Valor máximo'),
+                        _buildTableCell('${stats['max']}', isBold: true),
+                        _buildTableCell('mg/dl'),
+                        _buildTableCell(_getStatusForValue(stats['max']!)),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 24),
+
+                // Rangos de referencia
+                pw.Text(
+                  'Rangos de Referencia',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+
+                // Tabla de rangos
+                pw.Table(
+                  border: pw.TableBorder.all(
+                    color: PdfColor.fromHex('#E0E6EB'),
+                    width: 1,
+                  ),
+                  children: [
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#337536'),
+                      ),
+                      children: [
+                        _buildTableCell('Normal', isHeader: true),
+                        _buildTableCell('70 - 100 mg/dl', isHeader: true),
+                      ],
+                    ),
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#FBC318'),
+                      ),
+                      children: [
+                        _buildTableCell('Precaución', isHeader: true),
+                        _buildTableCell('100 - 140 mg/dl', isHeader: true),
+                      ],
+                    ),
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#C72331'),
+                      ),
+                      children: [
+                        _buildTableCell('Crítico Alto', isHeader: true),
+                        _buildTableCell('> 140 mg/dl', isHeader: true),
+                      ],
+                    ),
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#C72331'),
+                      ),
+                      children: [
+                        _buildTableCell('Hipoglucemia', isHeader: true),
+                        _buildTableCell('< 70 mg/dl', isHeader: true),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 24),
+
+                // Recomendaciones
+                pw.Text(
+                  'Recomendaciones',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 12),
+                
+                _buildRecommendationBox(
+                  'Monitoreo Regular',
+                  'Continúa registrando tus niveles de glucosa diariamente para un mejor control.',
+                ),
+                pw.SizedBox(height: 8),
+                
+                _buildRecommendationBox(
+                  'Alimentación Saludable',
+                  'Mantén una dieta balanceada, baja en azúcares procesados y rica en fibra.',
+                ),
+                pw.SizedBox(height: 8),
+                
+                _buildRecommendationBox(
+                  'Actividad Física',
+                  'Realiza ejercicio moderado al menos 30 minutos al día, 5 días a la semana.',
+                ),
+                pw.SizedBox(height: 8),
+                
+                _buildRecommendationBox(
+                  'Consulta Médica',
+                  'Mantén un seguimiento regular con tu médico y reporta cualquier anomalía.',
+                ),
+                pw.SizedBox(height: 24),
+
+                // Nota al pie
+                pw.Divider(),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'Este reporte es generado automáticamente por GlucPred. Los datos mostrados son un resumen de las mediciones registradas en el período seleccionado. Para un diagnóstico preciso, consulta con tu médico.',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColor.fromHex('#6C7C93'),
+                    fontStyle: pw.FontStyle.italic,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ],
+            ),
+          ];
+        },
+      ),
+    );
+
+    // Mostrar el PDF para previsualizar o descargar
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Reporte_Glucosa_${_getPeriodName()}_$dateStr.pdf',
+    );
+  }
+
+  pw.Widget _buildTableCell(String text, {bool isHeader = false, bool isBold = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: isHeader ? 12 : 11,
+          fontWeight: (isHeader || isBold) ? pw.FontWeight.bold : pw.FontWeight.normal,
+          color: isHeader ? PdfColors.white : PdfColors.black,
+        ),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  String _getStatusForValue(int value) {
+    if (value < 70) {
+      return 'Hipoglucemia';
+    } else if (value >= 70 && value <= 100) {
+      return 'Normal';
+    } else if (value > 100 && value <= 140) {
+      return 'Precaución';
+    } else {
+      return 'Crítico Alto';
+    }
+  }
+
+  pw.Widget _buildRecommendationBox(String title, String description) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: PdfColor.fromHex('#F0F7FF'),
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(
+          color: PdfColor.fromHex('#0073E6'),
+          width: 1,
+        ),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            '• $title',
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColor.fromHex('#0073E6'),
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            description,
+            style: pw.TextStyle(
+              fontSize: 10,
+              color: PdfColor.fromHex('#6C7C93'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

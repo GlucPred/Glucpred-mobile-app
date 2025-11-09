@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import '../services/auth_service.dart';
 
 class DoctorReportsScreen extends StatefulWidget {
   const DoctorReportsScreen({super.key});
@@ -33,14 +37,8 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> {
                 size: 20,
               ),
             ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Descargando reporte...'),
-                  backgroundColor: Color(0xFF337536),
-                ),
-              );
-            },
+            onPressed: () => _generateDoctorPdfReport(),
+            tooltip: 'Descargar reporte PDF',
           ),
           const SizedBox(width: 16),
         ],
@@ -400,6 +398,454 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _generateDoctorPdfReport() async {
+    final pdf = pw.Document();
+    
+    // Obtener datos del médico
+    final profileResult = await AuthService.getProfile();
+    String doctorName = 'Médico';
+    
+    if (profileResult['success']) {
+      final user = profileResult['user'];
+      doctorName = user['nombre_completo'] ?? 'Médico';
+    }
+    
+    // Obtener fecha actual
+    final now = DateTime.now();
+    final dateStr = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    
+    // Datos de ejemplo de pacientes (en producción estos vendrían del servicio)
+    final patientsSummary = [
+      {'name': 'Juan Pérez', 'age': '45', 'avg': '118', 'status': 'Precaución'},
+      {'name': 'María García', 'age': '52', 'avg': '142', 'status': 'Crítico'},
+      {'name': 'Carlos López', 'age': '38', 'avg': '95', 'status': 'Normal'},
+    ];
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        build: (pw.Context context) {
+          return [
+            // Encabezado
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'GlucPred',
+                          style: pw.TextStyle(
+                            fontSize: 28,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromHex('#0073E6'),
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          'Reporte General de Pacientes',
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            color: PdfColor.fromHex('#6C7C93'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text(
+                          'Fecha: $dateStr',
+                          style: const pw.TextStyle(fontSize: 12),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Hora: $timeStr',
+                          style: const pw.TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 8),
+                pw.Divider(thickness: 2, color: PdfColor.fromHex('#0073E6')),
+                pw.SizedBox(height: 20),
+
+                // Información del Médico
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#F9FAFB'),
+                    borderRadius: pw.BorderRadius.circular(8),
+                    border: pw.Border.all(
+                      color: PdfColor.fromHex('#E0E6EB'),
+                      width: 1,
+                    ),
+                  ),
+                  child: pw.Row(
+                    children: [
+                      pw.Icon(
+                        pw.IconData(0xe7fd), // medical services icon
+                        size: 20,
+                        color: PdfColor.fromHex('#0073E6'),
+                      ),
+                      pw.SizedBox(width: 12),
+                      pw.Text(
+                        'Dr. $doctorName',
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+
+                // Información del período
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#F0F7FF'),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Row(
+                    children: [
+                      pw.Icon(
+                        pw.IconData(0xe190), // calendar_today
+                        size: 24,
+                        color: PdfColor.fromHex('#0073E6'),
+                      ),
+                      pw.SizedBox(width: 12),
+                      pw.Text(
+                        'Período: $_selectedPeriod',
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 24),
+
+                // Estadísticas Generales
+                pw.Text(
+                  'Estadísticas Generales',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+
+                // Grid de estadísticas
+                pw.Row(
+                  children: [
+                    pw.Expanded(
+                      child: _buildPdfStatCard(
+                        'Promedio general',
+                        '118',
+                        'mg/dL',
+                        PdfColor.fromHex('#FBC318'),
+                      ),
+                    ),
+                    pw.SizedBox(width: 12),
+                    pw.Expanded(
+                      child: _buildPdfStatCard(
+                        '% en rango',
+                        '72%',
+                        'objetivo',
+                        PdfColor.fromHex('#337536'),
+                      ),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 12),
+                pw.Row(
+                  children: [
+                    pw.Expanded(
+                      child: _buildPdfStatCard(
+                        'Pacientes activos',
+                        '3',
+                        'pacientes',
+                        PdfColor.fromHex('#0073E6'),
+                      ),
+                    ),
+                    pw.SizedBox(width: 12),
+                    pw.Expanded(
+                      child: _buildPdfStatCard(
+                        'Alertas críticas',
+                        '2',
+                        'alertas',
+                        PdfColor.fromHex('#C72331'),
+                      ),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 24),
+
+                // Resumen de Pacientes
+                pw.Text(
+                  'Resumen de Pacientes',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+
+                // Tabla de pacientes
+                pw.Table(
+                  border: pw.TableBorder.all(
+                    color: PdfColor.fromHex('#E0E6EB'),
+                    width: 1,
+                  ),
+                  children: [
+                    // Encabezado
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#0073E6'),
+                      ),
+                      children: [
+                        _buildPdfTableCell('Paciente', isHeader: true),
+                        _buildPdfTableCell('Edad', isHeader: true),
+                        _buildPdfTableCell('Promedio', isHeader: true),
+                        _buildPdfTableCell('Estado', isHeader: true),
+                      ],
+                    ),
+                    // Datos de pacientes
+                    ...patientsSummary.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final patient = entry.value;
+                      return pw.TableRow(
+                        decoration: index.isEven
+                            ? pw.BoxDecoration(color: PdfColor.fromHex('#F9FAFB'))
+                            : null,
+                        children: [
+                          _buildPdfTableCell(patient['name']!),
+                          _buildPdfTableCell('${patient['age']!} años'),
+                          _buildPdfTableCell('${patient['avg']!} mg/dL', isBold: true),
+                          _buildPdfTableCell(
+                            patient['status']!,
+                            textColor: _getStatusColor(patient['status']!),
+                            isBold: true,
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+                pw.SizedBox(height: 24),
+
+                // Rangos de Referencia
+                pw.Text(
+                  'Rangos de Referencia',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+
+                pw.Table(
+                  border: pw.TableBorder.all(
+                    color: PdfColor.fromHex('#E0E6EB'),
+                    width: 1,
+                  ),
+                  children: [
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(color: PdfColor.fromHex('#337536')),
+                      children: [
+                        _buildPdfTableCell('Normal', isHeader: true),
+                        _buildPdfTableCell('70 - 100 mg/dl', isHeader: true),
+                      ],
+                    ),
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(color: PdfColor.fromHex('#FBC318')),
+                      children: [
+                        _buildPdfTableCell('Precaución', isHeader: true),
+                        _buildPdfTableCell('100 - 140 mg/dl', isHeader: true),
+                      ],
+                    ),
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(color: PdfColor.fromHex('#C72331')),
+                      children: [
+                        _buildPdfTableCell('Crítico Alto', isHeader: true),
+                        _buildPdfTableCell('> 140 mg/dl', isHeader: true),
+                      ],
+                    ),
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(color: PdfColor.fromHex('#C72331')),
+                      children: [
+                        _buildPdfTableCell('Hipoglucemia', isHeader: true),
+                        _buildPdfTableCell('< 70 mg/dl', isHeader: true),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 24),
+
+                // Observaciones y Recomendaciones
+                pw.Text(
+                  'Observaciones Generales',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 12),
+
+                _buildPdfObservationBox(
+                  'Tendencia General',
+                  'Los niveles promedio de glucosa se mantienen dentro del rango recomendado en la mayoría de los pacientes.',
+                ),
+                pw.SizedBox(height: 8),
+
+                _buildPdfObservationBox(
+                  'Alertas Críticas',
+                  '2 pacientes presentan valores críticos recurrentes. Se recomienda ajuste de tratamiento y seguimiento cercano.',
+                ),
+                pw.SizedBox(height: 8),
+
+                _buildPdfObservationBox(
+                  'Monitoreo',
+                  'Se detecta una tendencia ascendente leve en los últimos días. Continuar con el monitoreo frecuente.',
+                ),
+                pw.SizedBox(height: 24),
+
+                // Nota al pie
+                pw.Divider(),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'Este reporte es generado automáticamente por GlucPred. Los datos mostrados son un resumen de las mediciones registradas por todos los pacientes en el período seleccionado. Para evaluaciones individuales detalladas, consulte el perfil de cada paciente.',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColor.fromHex('#6C7C93'),
+                    fontStyle: pw.FontStyle.italic,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ],
+            ),
+          ];
+        },
+      ),
+    );
+
+    // Mostrar el PDF
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Reporte_Pacientes_$_selectedPeriod\_$dateStr.pdf',
+    );
+  }
+
+  pw.Widget _buildPdfStatCard(String title, String value, String unit, PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(16),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColor.fromHex('#E0E6EB')),
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            title,
+            style: pw.TextStyle(
+              fontSize: 11,
+              color: PdfColor.fromHex('#6C7C93'),
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 28,
+              fontWeight: pw.FontWeight.bold,
+              color: color,
+            ),
+          ),
+          pw.Text(
+            unit,
+            style: pw.TextStyle(
+              fontSize: 10,
+              color: PdfColor.fromHex('#6C7C93'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfTableCell(String text, {bool isHeader = false, bool isBold = false, PdfColor? textColor}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: isHeader ? 12 : 11,
+          fontWeight: (isHeader || isBold) ? pw.FontWeight.bold : pw.FontWeight.normal,
+          color: textColor ?? (isHeader ? PdfColors.white : PdfColors.black),
+        ),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  PdfColor _getStatusColor(String status) {
+    switch (status) {
+      case 'Normal':
+        return PdfColor.fromHex('#337536');
+      case 'Precaución':
+        return PdfColor.fromHex('#FBC318');
+      case 'Crítico':
+        return PdfColor.fromHex('#C72331');
+      default:
+        return PdfColor.fromHex('#6C7C93');
+    }
+  }
+
+  pw.Widget _buildPdfObservationBox(String title, String description) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: PdfColor.fromHex('#F0F7FF'),
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(
+          color: PdfColor.fromHex('#0073E6'),
+          width: 1,
+        ),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            '• $title',
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColor.fromHex('#0073E6'),
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            description,
+            style: pw.TextStyle(
+              fontSize: 10,
+              color: PdfColor.fromHex('#6C7C93'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
