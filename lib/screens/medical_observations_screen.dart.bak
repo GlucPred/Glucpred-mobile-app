@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/patient_data_service.dart';
+import '../models/patient.dart';
 
 class MedicalObservationsScreen extends StatefulWidget {
   final String patientName;
@@ -14,25 +16,24 @@ class MedicalObservationsScreen extends StatefulWidget {
 
 class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final PatientDataService _patientService = PatientDataService();
+  Patient? _patient;
+  List<MedicalObservation> _observations = [];
 
-  final List<Map<String, String>> _observations = [
-    {
-      'date': '03/10/2025',
-      'text': 'Control estable, mantener dosis actual.',
-    },
-    {
-      'date': '05/08/2025',
-      'text': 'Ajuste de medición, programar seguimiento.',
-    },
-    {
-      'date': '22/07/2025',
-      'text': 'Ajuste de medición, programar monitoreo.',
-    },
-    {
-      'date': '03/07/2025',
-      'text': 'Paciente refiere mejora, continuar monitoreo.',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadObservations();
+  }
+
+  void _loadObservations() {
+    _patient = _patientService.findPatientByName(widget.patientName);
+    if (_patient != null) {
+      setState(() {
+        _observations = _patient!.observaciones;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -150,15 +151,29 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
                         ],
                       ),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(20),
+                  : ListView.separated(
                       itemCount: _observations.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
-                        final observation = _observations[index];
+                        final obs = _observations[index];
                         return _buildObservationCard(
-                          observation['date']!,
-                          observation['text']!,
-                          isDark,
+                          title: obs.title,
+                          date: obs.formattedDate,
+                          time: obs.formattedTime,
+                          text: obs.description,
+                          isDark: isDark,
+                          onDelete: () {
+                            setState(() {
+                              _patientService.deleteObservation(_patient!.id, obs.id);
+                              _loadObservations();
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Observación eliminada'),
+                                backgroundColor: Color(0xFF337536),
+                              ),
+                            );
+                          },
                         );
                       },
                     ),
@@ -240,21 +255,33 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (descriptionController.text.isNotEmpty) {
-                setState(() {
-                  _observations.insert(0, {
-                    'date': _getCurrentDate(),
-                    'text': descriptionController.text,
-                  });
-                });
-                Navigator.pop(context);
+              if (titleController.text.isEmpty || descriptionController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Observación agregada exitosamente'),
-                    backgroundColor: Color(0xFF337536),
+                    content: Text('Por favor completa todos los campos'),
+                    backgroundColor: Color(0xFFC72331),
                   ),
                 );
+                return;
               }
+
+              _patientService.addObservationByName(
+                patientName: widget.patientName,
+                title: titleController.text,
+                description: descriptionController.text,
+              );
+
+              setState(() {
+                _loadObservations();
+              });
+
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Observación agregada exitosamente'),
+                  backgroundColor: Color(0xFF337536),
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0073E6),
@@ -266,7 +293,14 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
     );
   }
 
-  Widget _buildObservationCard(String date, String text, bool isDark) {
+  Widget _buildObservationCard({
+    required String title,
+    required String date,
+    required String time,
+    required String text,
+    required bool isDark,
+    required VoidCallback onDelete,
+  }) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -281,40 +315,39 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0073E6).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.event_note,
-                    color: Color(0xFF0073E6),
-                    size: 20,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  date,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: Icon(
-                    Icons.delete_outline,
-                    color: isDark ? Colors.red[300] : Colors.red,
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    _showDeleteConfirmation(date);
-                  },
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Color(0xFFC72331)),
+                      iconSize: 20,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: onDelete,
+                    ),
+                  ],
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$date • $time',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -328,67 +361,5 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
         ),
       ),
     );
-  }
-
-  void _showDeleteConfirmation(String date) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1A1F3A) : Colors.white,
-        title: Text(
-          'Eliminar observación',
-          style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF0A0E27),
-          ),
-        ),
-        content: Text(
-          '¿Estás seguro de que deseas eliminar esta observación?',
-          style: TextStyle(
-            color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: Text(
-              'Cancelar',
-              style: TextStyle(
-                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _observations.removeWhere((obs) => obs['date'] == date);
-              });
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Observación eliminada'),
-                  backgroundColor: Color(0xFFC72331),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFC72331),
-            ),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getCurrentDate() {
-    final now = DateTime.now();
-    return '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
   }
 }

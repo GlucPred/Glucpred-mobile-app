@@ -136,6 +136,7 @@ class DoctorHomeScreen extends StatelessWidget {
           children: [
             // Encabezados
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   flex: 2,
@@ -143,50 +144,57 @@ class DoctorHomeScreen extends StatelessWidget {
                     'Paciente',
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Expanded(
                   flex: 2,
                   child: Text(
                     'Estado',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Expanded(
                   flex: 2,
                   child: Text(
                     'Última glucosa',
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Alertas',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                     ),
                   ),
                 ),
-                const SizedBox(width: 40),
+                const SizedBox(width: 44),
               ],
             ),
             const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 8),
+            Divider(
+              height: 1,
+              color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
+            ),
+            const SizedBox(height: 4),
             // Filas de pacientes
             ...patients.map((patient) => _buildPatientRow(
                   name: patient['name']!,
@@ -213,68 +221,107 @@ class DoctorHomeScreen extends StatelessWidget {
     required BuildContext context,
   }) {
     Color statusColor;
+    Color statusBgColor;
     switch (status) {
       case 'Estable':
         statusColor = const Color(0xFF337536);
+        statusBgColor = const Color(0xFF337536).withOpacity(0.1);
         break;
       case 'Moderada':
         statusColor = const Color(0xFFFBC318);
+        statusBgColor = const Color(0xFFFBC318).withOpacity(0.1);
         break;
       case 'Crítica':
         statusColor = const Color(0xFFC72331);
+        statusBgColor = const Color(0xFFC72331).withOpacity(0.1);
         break;
       default:
         statusColor = const Color(0xFF6C7C93);
+        statusBgColor = const Color(0xFF6C7C93).withOpacity(0.1);
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // Nombre del paciente
           Expanded(
             flex: 2,
             child: Text(
               name,
               style: TextStyle(
                 fontSize: 13,
+                fontWeight: FontWeight.w500,
                 color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(width: 8),
+          // Estado como etiqueta (badge)
           Expanded(
             flex: 2,
-            child: Text(
-              status,
-              style: TextStyle(
-                fontSize: 13,
-                color: statusColor,
-                fontWeight: FontWeight.w600,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: statusBgColor,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: statusColor.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                status,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: statusColor,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          // Última glucosa
           Expanded(
             flex: 2,
             child: Text(
               glucose,
+              textAlign: TextAlign.left,
               style: TextStyle(
                 fontSize: 13,
+                fontWeight: FontWeight.w500,
                 color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(width: 8),
+          // Alertas
           Expanded(
             child: Text(
               alerts,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
+                fontWeight: FontWeight.w600,
                 color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          // Icono de lupa
           IconButton(
             icon: const Icon(Icons.search, color: Color(0xFF0073E6)),
             iconSize: 20,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 36,
+              minHeight: 36,
+            ),
             onPressed: () {
               Navigator.push(
                 context,

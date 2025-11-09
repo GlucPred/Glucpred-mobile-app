@@ -37,7 +37,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   
   // Valores originales para detectar cambios
   Map<String, dynamic> _originalValues = {};
-  double? _imc;
 
   @override
   void initState() {
@@ -101,8 +100,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _diagnosisDateController.text = profile['fecha_diagnostico'];
           }
         }
-
-        _imc = profile['imc']?.toDouble();
 
         // Guardar valores originales
         _originalValues = {
@@ -247,20 +244,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   String _calculateIMC() {
-    if (_imc != null) {
+    // Calcular IMC automáticamente desde peso y altura actuales
+    final weight = double.tryParse(_weightController.text);
+    final height = double.tryParse(_heightController.text);
+    
+    if (weight != null && height != null && height > 0) {
+      final imc = weight / (height * height);
       String category = '';
       
-      if (_imc! < 18.5) {
+      if (imc < 18.5) {
         category = 'bajo peso';
-      } else if (_imc! >= 18.5 && _imc! < 25) {
+      } else if (imc >= 18.5 && imc < 25) {
         category = 'normal';
-      } else if (_imc! >= 25 && _imc! < 30) {
+      } else if (imc >= 25 && imc < 30) {
         category = 'sobrepeso';
       } else {
         category = 'obesidad';
       }
       
-      return '${_imc!.toStringAsFixed(1)} ($category)';
+      return '${imc.toStringAsFixed(1)} ($category)';
     }
     return 'N/A';
   }

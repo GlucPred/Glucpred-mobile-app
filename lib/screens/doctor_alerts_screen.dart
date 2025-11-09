@@ -10,6 +10,7 @@ class DoctorAlertsScreen extends StatefulWidget {
 class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
   String _selectedFilter = 'Todas';
   final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   final List<Map<String, dynamic>> _alerts = [
     {
@@ -57,6 +58,14 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
 
   List<Map<String, dynamic>> get _filteredAlerts {
     List<Map<String, dynamic>> filtered = _alerts;
+
+    // Filtrar por búsqueda (nombre del paciente)
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((alert) {
+        final name = alert['name']!.toLowerCase();
+        return name.contains(_searchQuery.toLowerCase());
+      }).toList();
+    }
 
     // Filtrar por categoría
     if (_selectedFilter == 'Críticas') {
@@ -126,6 +135,57 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
                 _buildFilterButton('Recordatorios', isDark),
               ],
             ),
+            
+            // Indicador de búsqueda activa
+            if (_searchQuery.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0073E6).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF0073E6),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.search,
+                      color: Color(0xFF0073E6),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Buscando: "$_searchQuery"',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0073E6),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        color: Color(0xFF0073E6),
+                        size: 18,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        setState(() {
+                          _searchQuery = '';
+                          _searchController.clear();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
 
             // Lista de alertas
@@ -288,24 +348,41 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
   }
 
   Widget _buildEmptyState(bool isDark) {
+    final isSearching = _searchQuery.isNotEmpty;
+    final isRecordatorios = _selectedFilter == 'Recordatorios';
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.warning_amber_rounded,
+            isSearching ? Icons.search_off : Icons.warning_amber_rounded,
             size: 80,
             color: isDark ? const Color(0xFF0073E6) : const Color(0xFF0073E6),
           ),
           const SizedBox(height: 16),
           Text(
-            'No hay recordatorios',
+            isSearching 
+                ? 'No se encontraron alertas'
+                : isRecordatorios
+                    ? 'No hay recordatorios'
+                    : 'No hay alertas',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
             ),
           ),
+          if (isSearching) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Intenta con otro nombre de paciente',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -315,6 +392,7 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1A1F3A) : Colors.white,
         title: Text(
           'Buscar alerta',
           style: TextStyle(
@@ -325,31 +403,85 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
         ),
         content: TextField(
           controller: _searchController,
+          autofocus: true,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+          ),
           decoration: InputDecoration(
             hintText: 'Nombre del paciente...',
-            prefixIcon: const Icon(Icons.search),
+            hintStyle: TextStyle(
+              color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
+            ),
+            prefixIcon: Icon(
+              Icons.search,
+              color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
+            ),
+            filled: true,
+            fillColor: isDark ? const Color(0xFF0A0E27) : Colors.grey[50],
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFF0073E6), width: 2),
             ),
           ),
+          onSubmitted: (value) {
+            setState(() {
+              _searchQuery = value.trim();
+            });
+            Navigator.pop(context);
+            if (_searchQuery.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Buscando: $_searchQuery'),
+                  backgroundColor: const Color(0xFF0073E6),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          },
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: Color(0xFF6C7C93)),
+            onPressed: () {
+              _searchController.clear();
+              setState(() {
+                _searchQuery = '';
+              });
+              Navigator.pop(context);
+            },
+            child: Text(
+              'Limpiar',
+              style: TextStyle(
+                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
+              ),
             ),
           ),
           ElevatedButton(
             onPressed: () {
+              setState(() {
+                _searchQuery = _searchController.text.trim();
+              });
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Buscando: ${_searchController.text}'),
-                  backgroundColor: const Color(0xFF0073E6),
-                ),
-              );
+              if (_searchQuery.isNotEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Buscando: $_searchQuery'),
+                    backgroundColor: const Color(0xFF0073E6),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0073E6),
