@@ -1,57 +1,174 @@
 import 'package:flutter/material.dart';
-import '../services/glucose_service.dart';
-import '../models/glucose_reading.dart';
+import '../services/records_service.dart';
 
-class StatsScreen extends StatelessWidget {
+class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
 
   @override
+  State<StatsScreen> createState() => _StatsScreenState();
+}
+
+class _StatsScreenState extends State<StatsScreen> {
+  bool _isLoading = true;
+  Map<String, dynamic>? _statistics;
+  List<dynamic> _recentReadings = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatistics();
+  }
+
+  Future<void> _loadStatistics() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Cargar estadísticas de los últimos 7 días
+    final statsResult = await RecordsService.getStatistics(hours: 168);
+    
+    // Cargar historial reciente (últimas 10 lecturas)
+    final historyResult = await RecordsService.getHistory(limit: 10, offset: 0);
+
+    if (statsResult['success']) {
+      setState(() {
+        _statistics = statsResult['statistics'];
+      });
+    }
+
+    if (historyResult['success']) {
+      setState(() {
+        _recentReadings = historyResult['records'];
+      });
+    }
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (!statsResult['success']) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(statsResult['message'] ?? 'Error al cargar estadísticas'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final readings = GlucoseService.getHistoricalReadings(10);
-    final avgGlucose = readings.map((r) => r.value).reduce((a, b) => a + b) / readings.length;
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Estadísticas'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_statistics == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Estadísticas'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.info_outline, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text(
+                'No hay datos disponibles',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _loadStatistics,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Actualizar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final totalReadings = _statistics!['total_readings'] ?? 0;
+    final average = _statistics!['average'] ?? 0.0;
+    final classifications = _statistics!['classifications'] ?? {};
+    final normalPercentage = totalReadings > 0
+        ? RecordsService.calculateNormalPercentage(classifications, totalReadings)
+        : 0.0;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Estadísticas'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadStatistics,
+            tooltip: 'Actualizar',
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStatCard(
-              context,
-              'Promedio (7 días)',
-              '${avgGlucose.toStringAsFixed(0)} mg/dl',
-              Icons.trending_flat,
-              Colors.blue,
-            ),
-            const SizedBox(height: 12),
-            _buildStatCard(
-              context,
-              'Lecturas en rango',
-              '78%',
-              Icons.check_circle,
-              Colors.green,
-            ),
-            const SizedBox(height: 12),
-            _buildStatCard(
-              context,
-              'Lecturas totales',
-              '${readings.length} lecturas',
-              Icons.analytics,
-              Colors.orange,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Historial reciente',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+      body: RefreshIndicator(
+        onRefresh: _loadStatistics,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildStatCard(
+                context,
+                'Promedio (7 días)',
+                '${average.toStringAsFixed(0)} mg/dl',
+                Icons.trending_flat,
+                Colors.blue,
+              ),
+              const SizedBox(height: 12),
+              _buildStatCard(
+                context,
+                'Lecturas en rango',
+                '${normalPercentage.toStringAsFixed(0)}%',
+                Icons.check_circle,
+                Colors.green,
+              ),
+              const SizedBox(height: 12),
+              _buildStatCard(
+                context,
+                'Lecturas totales',
+                '$totalReadings lecturas',
+                Icons.analytics,
+                Colors.orange,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Historial reciente',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              if (_recentReadings.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Text(
+                      'No hay lecturas recientes',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ),
-            ),
-            const SizedBox(height: 16),
-            ...readings.map((reading) => _buildReadingItem(context, reading)),
-          ],
+                )
+              else
+                ..._recentReadings.map((reading) => _buildReadingItem(context, reading)),
+            ],
+          ),
         ),
       ),
     );
@@ -106,14 +223,19 @@ class StatsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildReadingItem(BuildContext context, GlucoseReading reading) {
+  Widget _buildReadingItem(BuildContext context, Map<String, dynamic> reading) {
+    final glucoseValue = reading['glucose_value']?.toDouble() ?? 0.0;
+    final classification = reading['classification'] ?? 'normal';
+    final measurementTime = DateTime.parse(reading['measurement_time']);
+    
     Color statusColor;
-    switch (reading.status) {
-      case 'high':
-        statusColor = Colors.orange;
-        break;
-      case 'low':
+    switch (classification.toLowerCase()) {
+      case 'critico':
+      case 'bajo':
         statusColor = Colors.red;
+        break;
+      case 'alto':
+        statusColor = Colors.orange;
         break;
       default:
         statusColor = Colors.green;
@@ -125,7 +247,7 @@ class StatsScreen extends StatelessWidget {
         leading: CircleAvatar(
           backgroundColor: statusColor.withOpacity(0.1),
           child: Text(
-            reading.value.toStringAsFixed(0),
+            glucoseValue.toStringAsFixed(0),
             style: TextStyle(
               color: statusColor,
               fontWeight: FontWeight.bold,
@@ -133,14 +255,14 @@ class StatsScreen extends StatelessWidget {
             ),
           ),
         ),
-        title: Text('${reading.value.toStringAsFixed(0)} mg/dl'),
+        title: Text('${glucoseValue.toStringAsFixed(0)} mg/dl'),
         subtitle: Text(
-          _formatDateTime(reading.timestamp),
+          _formatDateTime(measurementTime),
           style: TextStyle(color: Colors.grey[600]),
         ),
         trailing: Chip(
           label: Text(
-            reading.statusLabel.split(' ')[1], // Solo "normal", "alto", "bajo"
+            classification,
             style: const TextStyle(fontSize: 11),
           ),
           backgroundColor: statusColor.withOpacity(0.1),

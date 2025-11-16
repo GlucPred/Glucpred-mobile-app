@@ -3,7 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../widgets/glucose_chart_widget.dart';
-import '../services/glucose_service.dart';
+import '../services/records_service.dart';
 import '../services/auth_service.dart';
 import '../models/trend_point.dart';
 
@@ -16,7 +16,9 @@ class ChartsScreen extends StatefulWidget {
 
 class _ChartsScreenState extends State<ChartsScreen> {
   int _selectedTab = 0;
-  late List<TrendPoint> _chartData;
+  bool _isLoading = true;
+  List<TrendPoint> _chartData = [];
+  Map<String, dynamic>? _statistics;
   
   @override
   void initState() {
@@ -24,21 +26,63 @@ class _ChartsScreenState extends State<ChartsScreen> {
     _loadChartData();
   }
 
-  void _loadChartData() {
+  Future<void> _loadChartData() async {
     setState(() {
-      switch (_selectedTab) {
-        case 0: // Hoy
-          _chartData = GlucoseService.getTrendDataForToday();
-          break;
-        case 1: // Semana
-          _chartData = GlucoseService.getTrendDataForWeek();
-          break;
-        case 2: // Mes
-          _chartData = GlucoseService.getTrendDataForMonth();
-          break;
-        default:
-          _chartData = GlucoseService.getTrendDataForToday();
-      }
+      _isLoading = true;
+    });
+
+    int hours;
+    switch (_selectedTab) {
+      case 0: // Hoy
+        hours = 24;
+        break;
+      case 1: // Semana
+        hours = 168; // 7 días
+        break;
+      case 2: // Mes
+        hours = 720; // 30 días
+        break;
+      default:
+        hours = 24;
+    }
+
+    // Cargar tendencia
+    final trendResult = await RecordsService.getTrend(hours: hours);
+    
+    // Cargar estadísticas
+    final statsResult = await RecordsService.getStatistics(hours: hours);
+
+    if (trendResult['success']) {
+      final records = trendResult['records'] as List;
+      
+      setState(() {
+        _chartData = records.map((r) {
+          final dt = DateTime.parse(r['measurement_time']);
+          return TrendPoint(
+            timestamp: dt,
+            value: r['glucose_value'].toDouble(),
+            time: '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}',
+          );
+        }).toList();
+      });
+    } else {
+      setState(() {
+        _chartData = [];
+      });
+    }
+
+    if (statsResult['success']) {
+      setState(() {
+        _statistics = statsResult['statistics'];
+      });
+    } else {
+      setState(() {
+        _statistics = null;
+      });
+    }
+
+    setState(() {
+      _isLoading = false;
     });
   }
 
@@ -51,69 +95,115 @@ class _ChartsScreenState extends State<ChartsScreen> {
         title: const Text('Gráfica y reportes'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadChartData,
+            tooltip: 'Actualizar',
+          ),
+          IconButton(
             icon: const Icon(Icons.download, color: Color(0xFF0073E6)),
-            onPressed: () => _generatePdfReport(),
+            onPressed: _chartData.isEmpty ? null : () => _generatePdfReport(),
             tooltip: 'Descargar reporte PDF',
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Tabs de periodo
-              Row(
-                children: [
-                  _buildTabButton('Hoy', 0),
-                  const SizedBox(width: 8),
-                  _buildTabButton('Semana', 1),
-                  const SizedBox(width: 8),
-                  _buildTabButton('Mes', 2),
-                ],
-              ),
-              const SizedBox(height: 24),
-              
-              // Gráfico
-              Card(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadChartData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Tabs de periodo
                       Row(
                         children: [
-                          Icon(Icons.show_chart, color: Colors.blue[700], size: 24),
+                          _buildTabButton('Hoy', 0),
                           const SizedBox(width: 8),
-                          const Text(
-                            'Niveles de glucosa',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          _buildTabButton('Semana', 1),
+                          const SizedBox(width: 8),
+                          _buildTabButton('Mes', 2),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-                        child: GlucoseChartWidget(data: _chartData, period: _selectedTab),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildLegend(),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Estadísticas
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      'Promedio',
+                      const SizedBox(height: 24),
+                      
+                      // Mostrar mensaje si no hay datos
+                      if (_chartData.isEmpty)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32.0),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline,
+                                    size: 64,
+                                    color: Colors.grey[400],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No hay datos para este período',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _getEmptyMessage(),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      else ...[
+                        // Gráfico
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.show_chart, color: Colors.blue[700], size: 24),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Niveles de glucosa',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+                                  child: GlucoseChartWidget(data: _chartData, period: _selectedTab),
+                                ),
+                                const SizedBox(height: 20),
+                                _buildLegend(),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Estadísticas
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Promedio',
                       '${stats['average']}',
                       'mg/dl',
                       const Color(0xFFFBC318),
@@ -152,11 +242,26 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-      ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
     );
+  }
+
+  String _getEmptyMessage() {
+    switch (_selectedTab) {
+      case 0:
+        return 'No se han registrado mediciones en las últimas 24 horas';
+      case 1:
+        return 'No se han registrado mediciones en los últimos 7 días';
+      case 2:
+        return 'No se han registrado mediciones en los últimos 30 días';
+      default:
+        return 'No se han registrado mediciones';
+    }
   }
 
   Widget _buildTabButton(String label, int index) {
@@ -295,16 +400,20 @@ class _ChartsScreenState extends State<ChartsScreen> {
   }
 
   Map<String, int> _calculateStats() {
-    if (_chartData.isEmpty) {
-      return {'average': 110, 'inRange': 78, 'min': 85, 'max': 140};
+    if (_chartData.isEmpty || _statistics == null) {
+      return {'average': 0, 'inRange': 0, 'min': 0, 'max': 0};
     }
+
+    final totalReadings = _statistics!['total_readings'] ?? 0;
+    final average = (_statistics!['average'] ?? 0.0).round();
+    final min = (_statistics!['min'] ?? 0.0).round();
+    final max = (_statistics!['max'] ?? 0.0).round();
+    final classifications = _statistics!['classifications'] ?? {};
     
-    final values = _chartData.map((p) => p.value).toList();
-    final average = (values.reduce((a, b) => a + b) / values.length).round();
-    final min = values.reduce((a, b) => a < b ? a : b).round();
-    final max = values.reduce((a, b) => a > b ? a : b).round();
-    final inRange = ((values.where((v) => v >= 70 && v <= 140).length / values.length) * 100).round();
-    
+    final inRange = totalReadings > 0
+        ? RecordsService.calculateNormalPercentage(classifications, totalReadings).round()
+        : 0;
+
     return {
       'average': average,
       'inRange': inRange,
