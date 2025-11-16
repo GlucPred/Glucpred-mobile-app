@@ -184,19 +184,18 @@ class AuthService {
   }
 
   // Completar o actualizar el perfil del usuario (paciente o médico)
-  // body: mapa con los campos que requiere el backend, por ejemplo:
-  // {
-  //  "altura": 170,
-  //  "antecedentes": "...",
-  //  "edad": 45,
-  //  "fecha_diagnostico": "2020-05-15",
-  //  "medicamentos": "...",
-  //  "peso": 75.5
-  // }
+  // body: mapa con los campos que requiere el backend
+  // Para paciente: altura, antecedentes, edad, fecha_diagnostico, medicamentos, peso
+  // Para médico: centro_trabajo, especialidad, numero_colegiatura
   static Future<Map<String, dynamic>> completeProfile(Map<String, dynamic> body) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('$_baseUrl/api/profile');
+      final userInfo = await getUserInfo();
+      final rol = userInfo['rol']?.toString().toLowerCase() ?? 'paciente';
+      
+      // Usar endpoint específico según el rol
+      final endpoint = rol == 'medico' ? '/api/profile/medico' : '/api/profile/paciente';
+      final url = Uri.parse('$_baseUrl$endpoint');
 
       final response = await http.post(
         url,
@@ -237,11 +236,16 @@ class AuthService {
     }
   }
 
-  // Obtener perfil del usuario (GET /api/profile)
+  // Obtener perfil del usuario (GET /api/profile/paciente o /api/profile/medico)
   static Future<Map<String, dynamic>> getProfile() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('$_baseUrl/api/profile');
+      final userInfo = await getUserInfo();
+      final rol = userInfo['rol']?.toString().toLowerCase() ?? 'paciente';
+      
+      // Usar endpoint específico según el rol
+      final endpoint = rol == 'medico' ? '/api/profile/medico' : '/api/profile/paciente';
+      final url = Uri.parse('$_baseUrl$endpoint');
 
       final response = await http.get(
         url,
@@ -273,12 +277,17 @@ class AuthService {
     }
   }
 
-  // Actualizar perfil del usuario (PUT /api/profile)
+  // Actualizar perfil del usuario (PUT /api/profile/paciente o /api/profile/medico)
   // Solo envía los campos que se modificaron
   static Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('$_baseUrl/api/profile');
+      final userInfo = await getUserInfo();
+      final rol = userInfo['rol']?.toString().toLowerCase() ?? 'paciente';
+      
+      // Usar endpoint específico según el rol
+      final endpoint = rol == 'medico' ? '/api/profile/medico' : '/api/profile/paciente';
+      final url = Uri.parse('$_baseUrl$endpoint');
 
       final response = await http.put(
         url,

@@ -246,10 +246,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _calculateIMC() {
     // Calcular IMC automáticamente desde peso y altura actuales
     final weight = double.tryParse(_weightController.text);
-    final height = double.tryParse(_heightController.text);
+    final heightCm = double.tryParse(_heightController.text);
     
-    if (weight != null && height != null && height > 0) {
-      final imc = weight / (height * height);
+    if (weight != null && heightCm != null && heightCm > 0) {
+      // Convertir altura de cm a metros
+      final heightM = heightCm / 100;
+      final imc = weight / (heightM * heightM);
       String category = '';
       
       if (imc < 18.5) {
@@ -549,7 +551,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Expanded(
                   child: _buildTextField(
                     controller: _heightController,
-                    label: 'Altura (m)',
+                    label: 'Altura (cm)',
                     icon: Icons.height,
                     enabled: _isEditing,
                     isDark: isDark,

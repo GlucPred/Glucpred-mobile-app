@@ -196,8 +196,8 @@ class _CompletePatientProfileScreenState extends State<CompletePatientProfileScr
 
             _buildTextField(
               controller: _alturaController,
-              label: 'Altura',
-              hint: 'Ingresar altura (para cálculo de IMC)',
+              label: 'Altura (cm)',
+              hint: 'Ingresar altura en centímetros',
               isDark: isDark,
               keyboardType: TextInputType.number,
             ),

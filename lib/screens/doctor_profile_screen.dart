@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../config/theme.dart';
+import '../services/auth_service.dart';
 
 class DoctorProfileScreen extends StatefulWidget {
   const DoctorProfileScreen({super.key});
@@ -12,30 +13,186 @@ class DoctorProfileScreen extends StatefulWidget {
 
 class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   // Controladores para Perfil
-  final _nombreController = TextEditingController(text: 'Juan Alberto Monteblanco');
-  final _usuarioController = TextEditingController(text: 'jamont0');
-  final _celularController = TextEditingController(text: '939688777');
-  final _correoController = TextEditingController(text: 'jamont0@gmail.com');
+  final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   
   // Controladores para Datos del médico
-  final _colegiaturaController = TextEditingController(text: '235899');
-  final _especialidadController = TextEditingController(text: 'Endocrinología');
-  final _centroTrabajoController = TextEditingController(text: 'Clínica');
+  final _colegiaturaController = TextEditingController();
+  final _especialidadController = TextEditingController();
+  final _centroTrabajoController = TextEditingController();
 
   // Imagen de perfil
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
+  
+  // Estado de carga y edición
+  bool _isLoading = true;
+  bool _isEditing = false;
+  bool _isSaving = false;
+  
+  // Valores originales para detectar cambios
+  Map<String, dynamic> _originalValues = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
 
   @override
   void dispose() {
-    _nombreController.dispose();
-    _usuarioController.dispose();
-    _celularController.dispose();
-    _correoController.dispose();
+    _nameController.dispose();
+    _usernameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
     _colegiaturaController.dispose();
     _especialidadController.dispose();
     _centroTrabajoController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final result = await AuthService.getProfile();
+
+    if (result['success']) {
+      final user = result['user'];
+      final profile = result['profile'];
+
+      setState(() {
+        // Datos de usuario
+        _nameController.text = user['nombre_completo'] ?? '';
+        _usernameController.text = user['username'] ?? '';
+        _phoneController.text = user['numero_celular'] ?? '';
+        _emailController.text = user['email'] ?? '';
+
+        // Datos del perfil médico
+        _colegiaturaController.text = profile['numero_colegiatura'] ?? '';
+        _especialidadController.text = profile['especialidad'] ?? '';
+        _centroTrabajoController.text = profile['centro_trabajo'] ?? '';
+
+        // Guardar valores originales
+        _originalValues = {
+          'nombre_completo': _nameController.text,
+          'username': _usernameController.text,
+          'numero_celular': _phoneController.text,
+          'email': _emailController.text,
+          'numero_colegiatura': _colegiaturaController.text,
+          'especialidad': _especialidadController.text,
+          'centro_trabajo': _centroTrabajoController.text,
+        };
+
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Error al cargar perfil'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() {
+      _isSaving = true;
+    });
+
+    // Detectar qué campos cambiaron
+    Map<String, dynamic> changedFields = {};
+
+    if (_nameController.text != _originalValues['nombre_completo']) {
+      changedFields['nombre_completo'] = _nameController.text;
+    }
+    if (_usernameController.text != _originalValues['username']) {
+      changedFields['username'] = _usernameController.text;
+    }
+    if (_phoneController.text != _originalValues['numero_celular']) {
+      changedFields['numero_celular'] = _phoneController.text;
+    }
+    if (_emailController.text != _originalValues['email']) {
+      changedFields['email'] = _emailController.text;
+    }
+    if (_colegiaturaController.text != _originalValues['numero_colegiatura']) {
+      changedFields['numero_colegiatura'] = _colegiaturaController.text;
+    }
+    if (_especialidadController.text != _originalValues['especialidad']) {
+      changedFields['especialidad'] = _especialidadController.text;
+    }
+    if (_centroTrabajoController.text != _originalValues['centro_trabajo']) {
+      changedFields['centro_trabajo'] = _centroTrabajoController.text;
+    }
+
+    if (changedFields.isEmpty) {
+      setState(() {
+        _isSaving = false;
+        _isEditing = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay cambios para guardar'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final result = await AuthService.updateProfile(changedFields);
+
+    setState(() {
+      _isSaving = false;
+    });
+
+    if (result['success']) {
+      setState(() {
+        _isEditing = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Perfil actualizado correctamente'),
+          backgroundColor: const Color(0xFF337536),
+        ),
+      );
+
+      // Recargar el perfil para obtener datos actualizados
+      _loadProfile();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Error al actualizar perfil'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _cancelEdit() {
+    setState(() {
+      // Restaurar valores originales
+      _nameController.text = _originalValues['nombre_completo'];
+      _usernameController.text = _originalValues['username'];
+      _phoneController.text = _originalValues['numero_celular'];
+      _emailController.text = _originalValues['email'];
+      _colegiaturaController.text = _originalValues['numero_colegiatura'];
+      _especialidadController.text = _originalValues['especialidad'];
+      _centroTrabajoController.text = _originalValues['centro_trabajo'];
+      
+      _isEditing = false;
+    });
   }
 
   // Mostrar diálogo de opciones de foto
@@ -110,32 +267,6 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                     _pickImage(ImageSource.gallery);
                   },
                 ),
-                if (_profileImage != null) ...[
-                  const SizedBox(height: 8),
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppTheme.dangerColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.delete,
-                        color: AppTheme.dangerColor,
-                      ),
-                    ),
-                    title: Text(
-                      'Eliminar foto',
-                      style: TextStyle(
-                        color: isDark ? AppTheme.darkTextPrimaryColor : AppTheme.textPrimaryColor,
-                      ),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _deleteProfileImage();
-                    },
-                  ),
-                ],
                 const SizedBox(height: 10),
               ],
             ),
@@ -145,341 +276,308 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     );
   }
 
-  // Seleccionar imagen
   Future<void> _pickImage(ImageSource source) async {
     try {
-      final XFile? image = await _picker.pickImage(
+      final XFile? pickedFile = await _picker.pickImage(
         source: source,
-        maxWidth: 800,
-        maxHeight: 800,
+        maxWidth: 1024,
+        maxHeight: 1024,
         imageQuality: 85,
       );
-      
-      if (image != null) {
+
+      if (pickedFile != null) {
         setState(() {
-          _profileImage = File(image.path);
+          _profileImage = File(pickedFile.path);
         });
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Foto de perfil actualizada'),
-              backgroundColor: AppTheme.successColor,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al seleccionar imagen: $e'),
-            backgroundColor: AppTheme.dangerColor,
+            backgroundColor: Colors.red,
           ),
         );
       }
     }
   }
 
-  // Eliminar foto de perfil
-  void _deleteProfileImage() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return AlertDialog(
-          backgroundColor: isDark ? AppTheme.darkCardColor : Colors.white,
-          title: Text(
-            'Eliminar foto de perfil',
-            style: TextStyle(
-              color: isDark ? AppTheme.darkTextPrimaryColor : AppTheme.textPrimaryColor,
-            ),
-          ),
-          content: Text(
-            '¿Estás seguro de que quieres eliminar tu foto de perfil?',
-            style: TextStyle(
-              color: isDark ? AppTheme.darkTextSecondaryColor : AppTheme.textSecondaryColor,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancelar',
-                style: TextStyle(
-                  color: isDark ? AppTheme.darkTextSecondaryColor : AppTheme.textSecondaryColor,
-                ),
-              ),
-            ),
-            ElevatedButton(
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Mi Perfil'),
+          centerTitle: true,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mi Perfil'),
+        centerTitle: true,
+        actions: [
+          if (!_isEditing)
+            IconButton(
+              icon: const Icon(Icons.edit),
               onPressed: () {
                 setState(() {
-                  _profileImage = null;
+                  _isEditing = true;
                 });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Foto de perfil eliminada'),
-                    backgroundColor: AppTheme.successColor,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.dangerColor,
-              ),
-              child: const Text(
-                'Eliminar',
-                style: TextStyle(color: Colors.white),
-              ),
+              tooltip: 'Editar perfil',
             ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            // Foto de perfil
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 60,
+                  backgroundImage: _profileImage != null
+                      ? FileImage(_profileImage!)
+                      : null,
+                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                  child: _profileImage == null
+                      ? const Icon(
+                          Icons.person,
+                          size: 60,
+                          color: AppTheme.primaryColor,
+                        )
+                      : null,
+                ),
+                if (_isEditing)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: _showImageSourceDialog,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isDark ? AppTheme.darkBackgroundColor : Colors.white,
+                            width: 3,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          size: 20,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 30),
+
+            // Sección: Perfil
+            _buildSectionTitle('Perfil', isDark),
+            const SizedBox(height: 15),
+            _buildTextField(
+              controller: _nameController,
+              label: 'Nombre completo',
+              icon: Icons.person_outline,
+              enabled: _isEditing,
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              controller: _usernameController,
+              label: 'Nombre de usuario',
+              icon: Icons.alternate_email,
+              enabled: _isEditing,
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              controller: _phoneController,
+              label: 'Número de celular',
+              icon: Icons.phone_outlined,
+              enabled: _isEditing,
+              isDark: isDark,
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              controller: _emailController,
+              label: 'Correo electrónico',
+              icon: Icons.email_outlined,
+              enabled: _isEditing,
+              isDark: isDark,
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 30),
+
+            // Sección: Datos del médico
+            _buildSectionTitle('Datos profesionales', isDark),
+            const SizedBox(height: 15),
+            _buildTextField(
+              controller: _colegiaturaController,
+              label: 'Número de colegiatura',
+              icon: Icons.badge_outlined,
+              enabled: _isEditing,
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              controller: _especialidadController,
+              label: 'Especialidad',
+              icon: Icons.medical_services_outlined,
+              enabled: _isEditing,
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              controller: _centroTrabajoController,
+              label: 'Centro de trabajo',
+              icon: Icons.business_outlined,
+              enabled: _isEditing,
+              isDark: isDark,
+            ),
+            const SizedBox(height: 30),
+
+            // Botones de acción
+            if (_isEditing)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isSaving ? null : _cancelEdit,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: const BorderSide(color: Colors.grey),
+                      ),
+                      child: const Text('Cancelar'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _saveProfile,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Text('Guardar cambios'),
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 20),
           ],
-        );
-      },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, bool isDark) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: isDark ? AppTheme.darkTextPrimaryColor : AppTheme.textPrimaryColor,
+        ),
+      ),
     );
   }
 
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
+    required IconData icon,
+    required bool enabled,
+    required bool isDark,
     TextInputType? keyboardType,
     int maxLines = 1,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     return TextField(
       controller: controller,
+      enabled: enabled,
+      readOnly: readOnly,
+      onTap: onTap,
       keyboardType: keyboardType,
       maxLines: maxLines,
       style: TextStyle(
-        fontSize: 14,
         color: isDark ? AppTheme.darkTextPrimaryColor : AppTheme.textPrimaryColor,
+        fontSize: 14,
       ),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
-          fontSize: 14,
-          color: isDark ? AppTheme.darkTextSecondaryColor : AppTheme.textSecondaryColor,
+          color: enabled
+              ? (isDark ? AppTheme.darkTextSecondaryColor : AppTheme.textSecondaryColor)
+              : Colors.grey,
+        ),
+        prefixIcon: Icon(
+          icon,
+          color: enabled
+              ? AppTheme.primaryColor
+              : Colors.grey,
+          size: 20,
         ),
         filled: true,
-        fillColor: isDark ? AppTheme.darkCardColor : Colors.grey[50],
+        fillColor: enabled
+            ? (isDark ? AppTheme.darkCardColor.withOpacity(0.5) : Colors.grey.shade50)
+            : (isDark ? AppTheme.darkCardColor.withOpacity(0.3) : Colors.grey.shade100),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: isDark ? AppTheme.darkCardColor : Colors.grey[300]!,
-          ),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: isDark ? AppTheme.darkCardColor : Colors.grey[300]!,
+            color: isDark ? AppTheme.darkCardColor : Colors.grey.shade200,
+            width: 1,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      backgroundColor: isDark ? AppTheme.darkBackgroundColor : AppTheme.backgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Avatar section
-              Center(
-                child: GestureDetector(
-                  onTap: _showImageSourceDialog,
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: AppTheme.primaryColor,
-                        backgroundImage: _profileImage != null 
-                            ? FileImage(_profileImage!) 
-                            : null,
-                        child: _profileImage == null
-                            ? const Text(
-                                'JA',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : null,
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: GestureDetector(
-                          onTap: _showImageSourceDialog,
-                          child: Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isDark ? AppTheme.darkBackgroundColor : Colors.white,
-                                width: 2,
-                              ),
-                            ),
-                            child: Icon(
-                              _profileImage == null ? Icons.add : Icons.edit,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // Perfil section
-              Text(
-                'Perfil',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? AppTheme.darkTextPrimaryColor : AppTheme.textPrimaryColor,
-                ),
-              ),
-              const SizedBox(height: 12),
-              
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? AppTheme.darkCardColor : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _buildTextField(
-                      controller: _nombreController,
-                      label: 'Nombre',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _usuarioController,
-                      label: 'Usuario',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _celularController,
-                      label: 'Celular',
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _correoController,
-                      label: 'Correo',
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Datos del médico section
-              Text(
-                'Datos del médico',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? AppTheme.darkTextPrimaryColor : AppTheme.textPrimaryColor,
-                ),
-              ),
-              const SizedBox(height: 12),
-              
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? AppTheme.darkCardColor : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _buildTextField(
-                      controller: _colegiaturaController,
-                      label: 'Número de colegiatura',
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _especialidadController,
-                      label: 'Especialidad',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _centroTrabajoController,
-                      label: 'Centro de trabajo',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // Guardar cambios button
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Cambios guardados exitosamente'),
-                        backgroundColor: AppTheme.successColor,
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text(
-                    'Guardar cambios',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: AppTheme.primaryColor,
+            width: 2,
           ),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
         ),
       ),
     );
