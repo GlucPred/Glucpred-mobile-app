@@ -51,28 +51,9 @@ class TrendChart extends StatelessWidget {
                 painter: _ChartPainter(data),
               ),
             ),
-            const SizedBox(height: 16),
-            _buildTimeLabels(context),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTimeLabels(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: data.map((point) {
-        return Text(
-          point.time,
-          style: TextStyle(
-            fontSize: 12,
-            color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-          ),
-        );
-      }).toList(),
     );
   }
 }

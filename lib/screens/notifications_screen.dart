@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/alerts_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -9,22 +10,55 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   int _selectedTab = 0; // 0: Todas, 1: Críticas, 2: Recordatorios
+  List<Map<String, dynamic>> _alerts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAlerts();
+  }
+
+  Future<void> _loadAlerts() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      String typeFilter = 'todas';
+      if (_selectedTab == 1) {
+        typeFilter = 'critica';
+      } else if (_selectedTab == 2) {
+        typeFilter = 'recordatorio';
+      }
+      
+      final response = await AlertsService.getAlerts(
+        type: typeFilter,
+        limit: 50,
+      );
+      
+      setState(() {
+        _alerts = List<Map<String, dynamic>>.from(response['alerts'] ?? []);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar alertas: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final alerts = _getFilteredAlerts();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Alertas'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: Color(0xFF0073E6)),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Buscar alertas')),
-              );
-            },
+            icon: const Icon(Icons.done_all, color: Color(0xFF0073E6)),
+            onPressed: _alerts.isEmpty ? null : _markAllAsRead,
+            tooltip: 'Marcar todas como leídas',
           ),
         ],
       ),
@@ -46,19 +80,112 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           
           // Lista de alertas
           Expanded(
-            child: alerts.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: alerts.length,
-                    itemBuilder: (context, index) {
-                      return _buildAlertCard(alerts[index]);
-                    },
-                  ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _alerts.isEmpty
+                    ? _buildEmptyState()
+                    : RefreshIndicator(
+                        onRefresh: _loadAlerts,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _alerts.length,
+                          itemBuilder: (context, index) {
+                            return _buildAlertCard(_alerts[index]);
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreateReminderDialog,
+        backgroundColor: const Color(0xFF0073E6),
+        child: const Icon(Icons.add),
+        tooltip: 'Crear recordatorio',
+      ),
+    );
+  }
+
+  Future<void> _markAllAsRead() async {
+    try {
+      await AlertsService.markAllAsRead();
+      await _loadAlerts();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Todas las alertas marcadas como leídas')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showCreateReminderDialog() async {
+    final titleController = TextEditingController();
+    final messageController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Crear Recordatorio'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(
+                labelText: 'Título',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: messageController,
+              decoration: const InputDecoration(
+                labelText: 'Mensaje',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Crear'),
           ),
         ],
       ),
     );
+
+    if (result == true && titleController.text.isNotEmpty) {
+      try {
+        await AlertsService.createReminder(
+          title: titleController.text,
+          message: messageController.text,
+        );
+        await _loadAlerts();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Recordatorio creado')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildTabButton(String label, int index) {
@@ -69,6 +196,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       onPressed: () {
         setState(() {
           _selectedTab = index;
+          _loadAlerts(); // Recargar al cambiar de tab
         });
       },
       style: ElevatedButton.styleFrom(
@@ -100,126 +228,193 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildAlertCard(_Alert alert) {
+  Widget _buildAlertCard(Map<String, dynamic> alert) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final alertId = alert['id'];
+    final title = alert['titulo'] ?? 'Sin título';
+    final message = alert['mensaje'] ?? '';
+    final createdAt = alert['created_at'] ?? '';
+    final isRead = alert['is_read'] ?? false;
+    final severity = alert['severidad'] ?? 'info';
+    final type = alert['tipo'] ?? 'critica';
     
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    final severityColor = AlertsService.getColorBySeverity(severity);
+    final typeIcon = AlertsService.getIconByType(type);
+    final timeAgo = AlertsService.getTimeAgo(createdAt);
+    
+    return Dismissible(
+      key: Key('alert_$alertId'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.delete, color: Colors.white),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      confirmDismiss: (direction) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Eliminar alerta'),
+            content: const Text('¿Deseas eliminar esta alerta?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Eliminar'),
+              ),
+            ],
+          ),
+        );
+      },
+      onDismissed: (direction) async {
+        try {
+          await AlertsService.dismissAlert(alertId);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Alerta eliminada')),
+            );
+          }
+        } catch (e) {
+          await _loadAlerts(); // Recargar si falla
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error al eliminar: $e')),
+            );
+          }
+        }
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 1,
+        color: isRead ? null : (isDark ? const Color(0xFF1E2742) : const Color(0xFFF0F7FF)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: isRead ? BorderSide.none : BorderSide(
+            color: severityColor.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: InkWell(
+          onTap: () => _markAlertAsRead(alertId, isRead),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    alert.title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF000000),
+                Row(
+                  children: [
+                    Icon(
+                      typeIcon,
+                      color: severityColor,
+                      size: 24,
                     ),
-                  ),
-                ),
-                if (alert.actionButton != null)
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: alert.buttonColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF000000),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            timeAgo,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Text(
-                      alert.actionButton!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: severityColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: severityColor.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        severity == 'critico' ? 'Crítico' : 
+                        severity == 'advertencia' ? 'Advertencia' : 'Info',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: severityColor,
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  'Hora: ',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-                    fontWeight: FontWeight.w500,
-                  ),
+                  ],
                 ),
-                Text(
-                  alert.time,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isDark ? Colors.white : const Color(0xFF000000),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                if (alert.value != null) ...[
+                if (message.isNotEmpty) ...[
+                  const SizedBox(height: 12),
                   Text(
-                    alert.value!,
+                    message,
                     style: TextStyle(
                       fontSize: 14,
-                      color: isDark ? Colors.white : const Color(0xFF000000),
+                      color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                     ),
                   ),
                 ],
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Recomendaciones:',
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              alert.recommendation,
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
+  Future<void> _markAlertAsRead(int alertId, bool isCurrentlyRead) async {
+    if (isCurrentlyRead) return;
+    
+    try {
+      await AlertsService.markAsRead(alertId);
+      await _loadAlerts();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
   Widget _buildEmptyState() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    String message = 'No hay alertas';
+    
+    if (_selectedTab == 1) {
+      message = 'No hay alertas críticas';
+    } else if (_selectedTab == 2) {
+      message = 'No hay recordatorios';
+    }
     
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.info,
+            _selectedTab == 2 ? Icons.notifications_none : Icons.check_circle_outline,
             size: 64,
             color: const Color(0xFF0073E6),
           ),
           const SizedBox(height: 16),
           Text(
-            'No hay más alertas',
+            message,
             style: TextStyle(
               fontSize: 16,
               color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
@@ -229,68 +424,4 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     );
   }
-
-  List<_Alert> _getFilteredAlerts() {
-    final allAlerts = [
-      _Alert(
-        title: 'Hiperglucemia detectada',
-        time: '10:30 AM',
-        value: '185 mg/dl',
-        recommendation: 'Revisar medicación y consultar médico.',
-        type: 'critical',
-        actionButton: 'Crítico',
-        buttonColor: const Color(0xFFC72331),
-      ),
-      _Alert(
-        title: 'Hipoglucemia leve',
-        time: '07:20 AM',
-        value: '68 mg/dl',
-        recommendation: 'Consumir 15g de carbohidratos rápidos.',
-        type: 'critical',
-        actionButton: 'Crítico',
-        buttonColor: const Color(0xFFFBC318),
-      ),
-      _Alert(
-        title: 'Recordatorio de medición',
-        time: '06:24 AM',
-        value: null,
-        recommendation: 'Es hora de medir tu glucosa.',
-        type: 'reminder',
-        actionButton: 'Recordatorio',
-        buttonColor: const Color(0xFF0073E6),
-      ),
-    ];
-
-    // Filtrar según la pestaña seleccionada
-    if (_selectedTab == 1) {
-      // Solo críticas
-      return allAlerts.where((alert) => alert.type == 'critical').toList();
-    } else if (_selectedTab == 2) {
-      // Solo recordatorios
-      return allAlerts.where((alert) => alert.type == 'reminder').toList();
-    }
-    
-    // Todas
-    return allAlerts;
-  }
-}
-
-class _Alert {
-  final String title;
-  final String time;
-  final String? value;
-  final String recommendation;
-  final String type; // 'critical' o 'reminder'
-  final String? actionButton;
-  final Color? buttonColor;
-
-  _Alert({
-    required this.title,
-    required this.time,
-    this.value,
-    required this.recommendation,
-    required this.type,
-    this.actionButton,
-    this.buttonColor,
-  });
 }

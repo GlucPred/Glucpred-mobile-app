@@ -138,31 +138,11 @@ class _GlucoseChartPainter extends CustomPainter {
       canvas.drawCircle(point, 4.5, pointPaint);
     }
 
-    // Etiquetas del eje X
+    // Etiquetas del eje Y (mg/dL)
     final textPainter = TextPainter(
       textDirection: TextDirection.ltr,
       textAlign: TextAlign.center,
     );
-
-    for (int i = 0; i < data.length; i++) {
-      textPainter.text = TextSpan(
-        text: data[i].time,
-        style: const TextStyle(
-          color: Color(0xFF6C7C93), 
-          fontSize: 10, 
-          fontWeight: FontWeight.w500,
-        ),
-      );
-      textPainter.layout();
-      final xPos = chartLeft + (pointSpacing * i) - (textPainter.width / 2);
-      final yPos = chartTop + chartHeight + 8;
-      textPainter.paint(
-        canvas,
-        Offset(xPos, yPos),
-      );
-    }
-
-    // Etiquetas del eje Y (mg/dL)
     final yLabels = ['200', '150', '100', '50', '0'];
     final yValues = [0.0, 0.25, 0.5, 0.75, 1.0]; // Posiciones relativas
     

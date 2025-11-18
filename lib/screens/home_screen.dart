@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/records_service.dart';
 import '../widgets/glucose_card.dart';
@@ -19,17 +20,38 @@ class _HomeScreenState extends State<HomeScreen> {
   GlucoseReading? currentReading;
   RiskPrediction? riskPrediction;
   List<TrendPoint> trendData = [];
+  Timer? _updateTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadData(isInitial: true);
+    _startAutoUpdate();
   }
 
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
+  @override
+  void dispose() {
+    _updateTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Inicia actualización automática cada 5 segundos (para pruebas)
+  /// TODO: Cambiar a Duration(minutes: 5) en producción
+  void _startAutoUpdate() {
+    _updateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted) {
+        _loadData(isInitial: false);
+      }
     });
+  }
+
+  Future<void> _loadData({bool isInitial = false}) async {
+    // Solo mostrar loading en la carga inicial
+    if (isInitial) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     // Cargar última medición
     final latestResult = await RecordsService.getLatestReading();
@@ -71,9 +93,12 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
 
-    setState(() {
-      _isLoading = false;
-    });
+    // Solo cambiar el estado de loading en la carga inicial
+    if (isInitial) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
 
     if (!latestResult['success']) {
       if (mounted) {
@@ -138,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refreshData() async {
-    await _loadData();
+    await _loadData(isInitial: false);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
