@@ -21,7 +21,19 @@ class AlertsService {
   /// 
   /// Retorna:
   /// - success: bool
-  /// - alerts: List de alertas
+  /// - alerts: List de alertas con estructura:
+  ///   {
+  ///     "id": int,
+  ///     "user_id": int,
+  ///     "glucose_record_id": int?,
+  ///     "glucose_value": double?,
+  ///     "alert_type": "critica" | "recordatorio",
+  ///     "severity": "critico" | "advertencia" | "info",
+  ///     "title": String,
+  ///     "message": String,
+  ///     "is_read": bool,
+  ///     "created_at": String (ISO 8601)
+  ///   }
   /// - total: int
   /// - limit: int
   /// - offset: int

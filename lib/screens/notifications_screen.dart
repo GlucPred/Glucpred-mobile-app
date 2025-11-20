@@ -231,12 +231,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildAlertCard(Map<String, dynamic> alert) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final alertId = alert['id'];
-    final title = alert['titulo'] ?? 'Sin título';
-    final message = alert['mensaje'] ?? '';
+    final title = alert['title'] ?? 'Sin título';
+    final message = alert['message'] ?? '';
     final createdAt = alert['created_at'] ?? '';
     final isRead = alert['is_read'] ?? false;
-    final severity = alert['severidad'] ?? 'info';
-    final type = alert['tipo'] ?? 'critica';
+    final severity = alert['severity'] ?? 'info';
+    final type = alert['alert_type'] ?? 'critica';
+    final glucoseValue = alert['glucose_value'];
     
     final severityColor = AlertsService.getColorBySeverity(severity);
     final typeIcon = AlertsService.getIconByType(type);
@@ -360,6 +361,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                   ],
                 ),
+                if (glucoseValue != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: severityColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${glucoseValue.toStringAsFixed(0)} mg/dl',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: severityColor,
+                      ),
+                    ),
+                  ),
+                ],
                 if (message.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(
