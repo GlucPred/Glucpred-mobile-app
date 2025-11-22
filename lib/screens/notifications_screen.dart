@@ -232,7 +232,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final alertId = alert['id'];
     final title = alert['title'] ?? 'Sin título';
-    final message = alert['message'] ?? '';
     final createdAt = alert['created_at'] ?? '';
     final isRead = alert['is_read'] ?? false;
     final severity = alert['severity'] ?? 'info';
@@ -304,7 +303,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ),
         child: InkWell(
-          onTap: () => _markAlertAsRead(alertId, isRead),
+          onTap: () => _showAlertDetails(alert),
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -362,9 +361,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ],
                 ),
                 if (glucoseValue != null) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: severityColor.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(8),
@@ -372,20 +371,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     child: Text(
                       '${glucoseValue.toStringAsFixed(0)} mg/dl',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: severityColor,
                       ),
-                    ),
-                  ),
-                ],
-                if (message.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    message,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                     ),
                   ),
                 ],
@@ -393,6 +382,94 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showAlertDetails(Map<String, dynamic> alert) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final alertId = alert['id'];
+    final title = alert['title'] ?? 'Sin título';
+    final message = alert['message'] ?? '';
+    final severity = alert['severity'] ?? 'info';
+    final type = alert['alert_type'] ?? 'critica';
+    final glucoseValue = alert['glucose_value'];
+    final isRead = alert['is_read'] ?? false;
+    
+    final severityColor = AlertsService.getColorBySeverity(severity);
+    final typeIcon = AlertsService.getIconByType(type);
+    
+    // Marcar como leída si no lo está
+    if (!isRead) {
+      await _markAlertAsRead(alertId, isRead);
+    }
+    
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1A1F3A) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(typeIcon, color: severityColor, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (glucoseValue != null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: severityColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: severityColor.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    '${glucoseValue.toStringAsFixed(0)} mg/dl',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: severityColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              Text(
+                message,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF2C3E50),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
       ),
     );
   }

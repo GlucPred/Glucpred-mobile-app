@@ -1,126 +1,250 @@
 import 'package:flutter/material.dart';
 import 'patient_detail_screen.dart';
+import 'add_patient_screen.dart';
+import '../services/doctor_patient_service.dart';
+import '../services/auth_service.dart';
 
-class DoctorHomeScreen extends StatelessWidget {
+class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key});
+
+  @override
+  State<DoctorHomeScreen> createState() => _DoctorHomeScreenState();
+}
+
+class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _patients = [];
+  String _doctorName = 'Dr. Juan';
+  int _totalPatients = 0;
+  int _activePatients = 0;
+  int _criticalAlerts = 0;
+  double _avgGlucose = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDoctorInfo();
+    _loadPatientsSummary();
+  }
+
+  Future<void> _loadDoctorInfo() async {
+    final userInfo = await AuthService.getUserInfo();
+    final nombreCompleto = userInfo['nombre_completo'] ?? 'Doctor';
+    setState(() {
+      _doctorName = nombreCompleto;
+    });
+  }
+
+  Future<void> _loadPatientsSummary() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await DoctorPatientService.getPatientsSummary();
+
+      if (result['success']) {
+        final patients = List<Map<String, dynamic>>.from(result['patients'] ?? []);
+        
+        // Calcular indicadores
+        int activeCount = patients.length;
+        int alertsCount = 0;
+        double totalGlucose = 0.0;
+
+        for (var patient in patients) {
+          alertsCount += (patient['alertas_count'] as int? ?? 0);
+          totalGlucose += (patient['ultima_glucosa'] as num? ?? 0).toDouble();
+        }
+
+        double avgGlucose = patients.isEmpty ? 0.0 : totalGlucose / patients.length;
+
+        setState(() {
+          _patients = patients;
+          _totalPatients = result['total'] ?? 0;
+          _activePatients = activeCount;
+          _criticalAlerts = alertsCount;
+          _avgGlucose = avgGlucose;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'Error al cargar pacientes')),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Home'),
+          centerTitle: true,
+          automaticallyImplyLeading: false,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Home'),
         centerTitle: true,
         automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_add),
+            tooltip: 'Agregar paciente',
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AddPatientScreen(),
+                ),
+              );
+              
+              // Si se agregó un paciente, recargar la lista
+              if (result == true) {
+                _loadPatientsSummary();
+              }
+            },
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Saludo
-            Text(
-              'Hola, Dr. Juan',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Panel de control
-            Text(
-              'Panel de control',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Visualiza el estado actual de tus pacientes y accede a sus reportes detallados.',
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Resumen de pacientes
-            Text(
-              'Resumen de pacientes',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Tabla de pacientes
-            _buildPatientTable(isDark, context),
-            const SizedBox(height: 32),
-
-            // Indicadores
-            Text(
-              'Indicadores',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Tarjetas de indicadores
-            Row(
-              children: [
-                Expanded(
-                  child: _buildIndicatorCard(
-                    title: 'Pacientes activos',
-                    value: '9',
-                    isDark: isDark,
-                  ),
+      body: RefreshIndicator(
+        onRefresh: _loadPatientsSummary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Saludo
+              Text(
+                'Hola, $_doctorName',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildIndicatorCard(
-                    title: 'Alertas Críticas',
-                    value: '3',
-                    isDark: isDark,
-                  ),
+              ),
+              const SizedBox(height: 8),
+
+              // Panel de control
+              Text(
+                'Panel de control',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildIndicatorCard(
-                    title: 'Promedio de glucosa',
-                    value: '118 mg/dL',
-                    isDark: isDark,
-                  ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Visualiza el estado actual de tus pacientes y accede a sus reportes detallados.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 24),
+
+              // Resumen de pacientes
+              Text(
+                'Resumen de pacientes',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Tabla de pacientes
+              _buildPatientTable(isDark, context),
+              const SizedBox(height: 32),
+
+              // Indicadores
+              Text(
+                'Indicadores',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Tarjetas de indicadores
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildIndicatorCard(
+                      title: 'Pacientes activos',
+                      value: '$_activePatients',
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildIndicatorCard(
+                      title: 'Alertas Críticas',
+                      value: '$_criticalAlerts',
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildIndicatorCard(
+                      title: 'Promedio de glucosa',
+                      value: '${_avgGlucose.toStringAsFixed(0)} mg/dL',
+                      isDark: isDark,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildPatientTable(bool isDark, BuildContext context) {
-    final patients = [
-      {'name': 'Ana Sofia', 'age': '52', 'status': 'Estable', 'glucose': '245 mg/dL', 'alerts': '0'},
-      {'name': 'Ana Ruiz', 'age': '45', 'status': 'Crítica', 'glucose': '245 mg/dL', 'alerts': '2'},
-      {'name': 'Luis Vega', 'age': '38', 'status': 'Moderada', 'glucose': '168 mg/dL', 'alerts': '1'},
-      {'name': 'Carlos Méndez', 'age': '60', 'status': 'Estable', 'glucose': '98 mg/dL', 'alerts': '0'},
-      {'name': 'Diana Huamán', 'age': '29', 'status': 'Crítica', 'glucose': '136 mg/dL', 'alerts': '2'},
-      {'name': 'Lucía Torres', 'age': '41', 'status': 'Moderada', 'glucose': '210 mg/dL', 'alerts': '1'},
-      {'name': 'Jorge Salazar', 'age': '55', 'status': 'Crítica', 'glucose': '210 mg/dL', 'alerts': '3'},
-      {'name': 'María Campos', 'age': '33', 'status': 'Estable', 'glucose': '105 mg/dL', 'alerts': '2'},
-      {'name': 'Eduardo Piers', 'age': '47', 'status': 'Moderada', 'glucose': '155 mg/dL', 'alerts': '1'},
-    ];
+    if (_patients.isEmpty) {
+      return Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Center(
+            child: Text(
+              'No hay pacientes asignados',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Card(
       elevation: 0,
@@ -196,12 +320,8 @@ class DoctorHomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             // Filas de pacientes
-            ...patients.map((patient) => _buildPatientRow(
-                  name: patient['name']!,
-                  age: patient['age']!,
-                  status: patient['status']!,
-                  glucose: patient['glucose']!,
-                  alerts: patient['alerts']!,
+            ..._patients.map((patient) => _buildPatientRow(
+                  patientData: patient,
                   isDark: isDark,
                   context: context,
                 )),
@@ -212,14 +332,17 @@ class DoctorHomeScreen extends StatelessWidget {
   }
 
   Widget _buildPatientRow({
-    required String name,
-    required String age,
-    required String status,
-    required String glucose,
-    required String alerts,
+    required Map<String, dynamic> patientData,
     required bool isDark,
     required BuildContext context,
   }) {
+    final name = patientData['nombre_completo'] ?? 'Sin nombre';
+    final edad = patientData['edad']?.toString() ?? '0';
+    final status = patientData['estado'] ?? 'Estable';
+    final glucoseValue = (patientData['ultima_glucosa'] as num?)?.toDouble() ?? 0.0;
+    final glucose = '${glucoseValue.toStringAsFixed(0)} mg/dL';
+    final alerts = (patientData['alertas_count'] ?? 0).toString();
+    final patientUserId = patientData['patient_user_id'] as int;
     Color statusColor;
     Color statusBgColor;
     switch (status) {
@@ -327,8 +450,9 @@ class DoctorHomeScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => PatientDetailScreen(
+                    patientUserId: patientUserId,
                     patientName: name,
-                    patientAge: age,
+                    patientAge: edad,
                     currentStatus: status,
                   ),
                 ),

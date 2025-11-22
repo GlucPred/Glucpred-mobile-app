@@ -43,6 +43,8 @@ dependencies:
   pdf: ^3.11.1
   printing: ^5.13.4
   path_provider: ^2.1.5
+  health: ^13.2.1
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
@@ -54,6 +56,18 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  
+  # Generador automático de iconos de launcher
+  flutter_launcher_icons: ^0.13.1
+
+# Configuración del icono de la app
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/Glucpred_logo.png"
+  adaptive_icon_background: "#FFFFFF"  # Fondo blanco para Android adaptive icon
+  adaptive_icon_foreground: "assets/icon/Glucpred_logo.png"
+  min_sdk_android: 26
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

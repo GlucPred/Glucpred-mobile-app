@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'medical_observations_screen.dart';
-import '../services/glucose_service.dart';
+import '../services/doctor_patient_service.dart';
 import '../models/trend_point.dart';
 
 class PatientDetailScreen extends StatefulWidget {
+  final int patientUserId;
   final String patientName;
   final String patientAge;
   final String currentStatus;
 
   const PatientDetailScreen({
     super.key,
+    required this.patientUserId,
     required this.patientName,
     required this.patientAge,
     required this.currentStatus,
@@ -23,27 +25,119 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   String _selectedPeriod = 'Hoy';
   final TextEditingController _observationController = TextEditingController();
   List<TrendPoint> _trendData = [];
+  bool _isLoading = true;
+  bool _isSavingObservation = false;
+  
+  // Datos del paciente desde el backend
+  Map<String, dynamic>? _patientProfile;
+  Map<String, dynamic>? _glucoseStats;
+  Map<String, dynamic>? _latestObservation;
 
   @override
   void initState() {
     super.initState();
-    _loadTrendData();
+    _loadPatientDetail();
   }
 
-  void _loadTrendData() {
-    setState(() {
-      switch (_selectedPeriod) {
-        case 'Hoy':
-          _trendData = GlucoseService.getTrendDataForToday();
-          break;
-        case 'Semana':
-          _trendData = GlucoseService.getTrendDataForWeek();
-          break;
-        case 'Mes':
-          _trendData = GlucoseService.getTrendDataForMonth();
-          break;
+  Future<void> _loadPatientDetail() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final period = _selectedPeriod == 'Hoy' ? 'day' : (_selectedPeriod == 'Semana' ? 'week' : 'month');
+      final result = await DoctorPatientService.getPatientDetail(
+        widget.patientUserId,
+        period: period,
+      );
+
+      if (result['success']) {
+        final trendData = List<Map<String, dynamic>>.from(result['glucose_trend'] ?? []);
+        
+        setState(() {
+          _patientProfile = result['profile'];
+          _glucoseStats = result['glucose_stats'];
+          _latestObservation = result['latest_observation'];
+          
+          // Convertir datos de tendencia a TrendPoint
+          _trendData = trendData.map((data) {
+            final timestamp = DateTime.parse(data['measurement_time']);
+            return TrendPoint(
+              timestamp: timestamp,
+              value: (data['glucose_value'] as num).toDouble(),
+              time: '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}',
+            );
+          }).toList();
+          
+          // Si hay observación previa, cargarla en el campo de texto
+          if (_latestObservation != null) {
+            _observationController.text = _latestObservation!['observation_text'] ?? '';
+          }
+          
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'Error al cargar datos')),
+          );
+        }
       }
-    });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveObservation() async {
+    final observationText = _observationController.text.trim();
+    
+    if (observationText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Escribe una observación antes de guardar')),
+      );
+      return;
+    }
+
+    setState(() => _isSavingObservation = true);
+
+    try {
+      final result = await DoctorPatientService.createObservation(
+        widget.patientUserId,
+        observationText,
+      );
+
+      setState(() => _isSavingObservation = false);
+
+      if (result['success']) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'Observación guardada')),
+          );
+          // Recargar datos para obtener la última observación
+          _loadPatientDetail();
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Error al guardar observación'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isSavingObservation = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -55,6 +149,37 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: isDark ? const Color(0xFF0A0E27) : const Color(0xFFF9FAFB),
+        appBar: AppBar(
+          title: const Text('Detalle del paciente'),
+          centerTitle: true,
+          leading: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Color(0xFF0073E6),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Extraer datos para mostrar
+    final glucoseActual = (_glucoseStats?['average'] as num?)?.toDouble() ?? 0.0;
+    final promedioDiario = glucoseActual;
+    final porcentajeRango = (_glucoseStats?['in_range_percentage'] as num?)?.toDouble() ?? 0.0;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0A0E27) : const Color(0xFFF9FAFB),
@@ -226,7 +351,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 Expanded(
                   child: _buildMeasurementCard(
                     title: 'Glucosa actual',
-                    value: '245',
+                    value: glucoseActual.toStringAsFixed(0),
                     unit: 'mg/dl',
                     color: const Color(0xFFC72331),
                     isDark: isDark,
@@ -236,7 +361,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 Expanded(
                   child: _buildMeasurementCard(
                     title: 'Promedio diario',
-                    value: '178',
+                    value: promedioDiario.toStringAsFixed(0),
                     unit: 'mg/dl',
                     color: const Color(0xFFC72331),
                     isDark: isDark,
@@ -246,7 +371,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 Expanded(
                   child: _buildMeasurementCard(
                     title: '% en rango',
-                    value: '64%',
+                    value: '${porcentajeRango.toStringAsFixed(0)}%',
                     unit: 'objetivo',
                     color: const Color(0xFFFBC318),
                     isDark: isDark,
@@ -358,14 +483,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Cambios guardados exitosamente'),
-                      backgroundColor: Color(0xFF337536),
-                    ),
-                  );
-                },
+                onPressed: _isSavingObservation ? null : _saveObservation,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0073E6),
                   foregroundColor: Colors.white,
@@ -394,6 +512,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   MaterialPageRoute(
                     builder: (context) => MedicalObservationsScreen(
                       patientName: widget.patientName,
+                      patientUserId: widget.patientUserId,
                     ),
                   ),
                 );
@@ -521,7 +640,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           setState(() {
             _selectedPeriod = label;
           });
-          _loadTrendData();
+          _loadPatientDetail(); // Recargar datos con nuevo periodo
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: isSelected ? const Color(0xFF0073E6) : Colors.transparent,
