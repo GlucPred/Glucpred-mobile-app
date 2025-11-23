@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'medical_observations_screen.dart';
 import '../services/doctor_patient_service.dart';
+import '../services/records_service.dart';
 import '../models/trend_point.dart';
 
 class PatientDetailScreen extends StatefulWidget {
@@ -25,60 +26,52 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   String _selectedPeriod = 'Hoy';
   final TextEditingController _observationController = TextEditingController();
   List<TrendPoint> _trendData = [];
+  List<Map<String, dynamic>> _allRecords = [];
   bool _isLoading = true;
   bool _isSavingObservation = false;
   
-  // Datos del paciente desde el backend
-  Map<String, dynamic>? _patientProfile;
-  Map<String, dynamic>? _glucoseStats;
+  // Estadísticas calculadas desde el historial
+  double _currentGlucose = 0.0;
+  double _averageGlucose = 0.0;
+  double _normalPercentage = 0.0;
   Map<String, dynamic>? _latestObservation;
 
   @override
   void initState() {
     super.initState();
-    _loadPatientDetail();
+    _loadPatientData();
   }
 
-  Future<void> _loadPatientDetail() async {
+  Future<void> _loadPatientData() async {
     setState(() => _isLoading = true);
 
     try {
-      final period = _selectedPeriod == 'Hoy' ? 'day' : (_selectedPeriod == 'Semana' ? 'week' : 'month');
-      final result = await DoctorPatientService.getPatientDetail(
+      // Cargar historial completo del paciente
+      final historyResult = await RecordsService.getPatientHistory(
         widget.patientUserId,
-        period: period,
+        limit: 500,
       );
 
-      if (result['success']) {
-        final trendData = List<Map<String, dynamic>>.from(result['glucose_trend'] ?? []);
+      if (historyResult['success']) {
+        final records = List<Map<String, dynamic>>.from(historyResult['records'] ?? []);
         
         setState(() {
-          _patientProfile = result['profile'];
-          _glucoseStats = result['glucose_stats'];
-          _latestObservation = result['latest_observation'];
-          
-          // Convertir datos de tendencia a TrendPoint
-          _trendData = trendData.map((data) {
-            final timestamp = DateTime.parse(data['measurement_time']);
-            return TrendPoint(
-              timestamp: timestamp,
-              value: (data['glucose_value'] as num).toDouble(),
-              time: '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}',
-            );
-          }).toList();
-          
-          // Si hay observación previa, cargarla en el campo de texto
-          if (_latestObservation != null) {
-            _observationController.text = _latestObservation!['observation_text'] ?? '';
-          }
-          
+          _allRecords = records;
+          _calculateStatistics();
+          _filterDataByPeriod();
           _isLoading = false;
         });
+
+        // Cargar observación médica más reciente
+        _loadLatestObservation();
       } else {
         setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['message'] ?? 'Error al cargar datos')),
+            SnackBar(
+              content: Text(historyResult['message'] ?? 'Error al cargar datos del paciente'),
+              backgroundColor: const Color(0xFFC72331),
+            ),
           );
         }
       }
@@ -86,10 +79,103 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: const Color(0xFFC72331),
+          ),
         );
       }
     }
+  }
+
+  Future<void> _loadLatestObservation() async {
+    try {
+      final period = _selectedPeriod == 'Hoy' ? 'day' : (_selectedPeriod == 'Semana' ? 'week' : 'month');
+      final result = await DoctorPatientService.getPatientDetail(
+        widget.patientUserId,
+        period: period,
+      );
+
+      if (result['success'] && result['latest_observation'] != null) {
+        setState(() {
+          _latestObservation = result['latest_observation'];
+          _observationController.text = _latestObservation!['observation'] ?? '';
+        });
+      }
+    } catch (e) {
+      // Error silencioso, la observación no es crítica
+    }
+  }
+
+  void _calculateStatistics() {
+    if (_allRecords.isEmpty) {
+      _currentGlucose = 0.0;
+      _averageGlucose = 0.0;
+      _normalPercentage = 0.0;
+      return;
+    }
+
+    // Última glucosa
+    _currentGlucose = (_allRecords.first['glucose_value'] as num).toDouble();
+
+    // Promedio
+    double sum = 0.0;
+    int normalCount = 0;
+
+    for (var record in _allRecords) {
+      final value = (record['glucose_value'] as num).toDouble();
+      sum += value;
+      
+      final classification = (record['classification'] ?? '').toLowerCase();
+      if (classification == 'normal') {
+        normalCount++;
+      }
+    }
+
+    _averageGlucose = sum / _allRecords.length;
+    _normalPercentage = (normalCount / _allRecords.length) * 100;
+  }
+
+  void _filterDataByPeriod() {
+    final now = DateTime.now();
+    DateTime cutoffDate;
+
+    switch (_selectedPeriod) {
+      case 'Hoy':
+        cutoffDate = DateTime(now.year, now.month, now.day);
+        break;
+      case 'Semana':
+        cutoffDate = now.subtract(const Duration(days: 7));
+        break;
+      case 'Mes':
+        cutoffDate = now.subtract(const Duration(days: 30));
+        break;
+      default:
+        cutoffDate = DateTime(now.year, now.month, now.day);
+    }
+
+    final filteredRecords = _allRecords.where((record) {
+      final timestamp = DateTime.parse(record['measurement_time']);
+      return timestamp.isAfter(cutoffDate);
+    }).toList();
+
+    // Ordenar de pasado a presente (orden cronológico)
+    filteredRecords.sort((a, b) {
+      final timeA = DateTime.parse(a['measurement_time']);
+      final timeB = DateTime.parse(b['measurement_time']);
+      return timeA.compareTo(timeB); // Pasado → Presente
+    });
+
+    setState(() {
+      _trendData = filteredRecords.map((record) {
+        final timestamp = DateTime.parse(record['measurement_time']);
+        return TrendPoint(
+          timestamp: timestamp,
+          value: (record['glucose_value'] as num).toDouble(),
+          time: '${timestamp.day}/${timestamp.month}', // Solo día/mes
+        );
+      }).toList();
+    });
   }
 
   Future<void> _saveObservation() async {
@@ -117,8 +203,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(result['message'] ?? 'Observación guardada')),
           );
-          // Recargar datos para obtener la última observación
-          _loadPatientDetail();
+          // Recargar la última observación
+          _loadLatestObservation();
         }
       } else {
         if (mounted) {
@@ -175,11 +261,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-
-    // Extraer datos para mostrar
-    final glucoseActual = (_glucoseStats?['average'] as num?)?.toDouble() ?? 0.0;
-    final promedioDiario = glucoseActual;
-    final porcentajeRango = (_glucoseStats?['in_range_percentage'] as num?)?.toDouble() ?? 0.0;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0A0E27) : const Color(0xFFF9FAFB),
@@ -351,7 +432,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 Expanded(
                   child: _buildMeasurementCard(
                     title: 'Glucosa actual',
-                    value: glucoseActual.toStringAsFixed(0),
+                    value: _currentGlucose.toStringAsFixed(0),
                     unit: 'mg/dl',
                     color: const Color(0xFFC72331),
                     isDark: isDark,
@@ -361,7 +442,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 Expanded(
                   child: _buildMeasurementCard(
                     title: 'Promedio diario',
-                    value: promedioDiario.toStringAsFixed(0),
+                    value: _averageGlucose.toStringAsFixed(0),
                     unit: 'mg/dl',
                     color: const Color(0xFFC72331),
                     isDark: isDark,
@@ -371,7 +452,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 Expanded(
                   child: _buildMeasurementCard(
                     title: '% en rango',
-                    value: '${porcentajeRango.toStringAsFixed(0)}%',
+                    value: '${_normalPercentage.toStringAsFixed(0)}%',
                     unit: 'objetivo',
                     color: const Color(0xFFFBC318),
                     isDark: isDark,
@@ -640,7 +721,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           setState(() {
             _selectedPeriod = label;
           });
-          _loadPatientDetail(); // Recargar datos con nuevo periodo
+          _filterDataByPeriod(); // Filtrar datos con nuevo periodo
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: isSelected ? const Color(0xFF0073E6) : Colors.transparent,

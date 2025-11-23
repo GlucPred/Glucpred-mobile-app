@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../services/alerts_service.dart';
 
 class DoctorAlertsScreen extends StatefulWidget {
   const DoctorAlertsScreen({super.key});
@@ -7,48 +9,44 @@ class DoctorAlertsScreen extends StatefulWidget {
   State<DoctorAlertsScreen> createState() => _DoctorAlertsScreenState();
 }
 
-class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
+class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> with AutomaticKeepAliveClientMixin {
   String _selectedFilter = 'Todas';
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _isLoading = false;
+  List<Map<String, dynamic>> _alerts = [];
 
-  final List<Map<String, dynamic>> _alerts = [
-    {
-      'name': 'Ana Sofia',
-      'type': 'Alta',
-      'time': '07:20 AM',
-      'glucose': '245 mg/dl',
-      'status': 'Crítico',
-    },
-    {
-      'name': 'Ana Ruiz',
-      'type': 'Alta',
-      'time': '07:20 AM',
-      'glucose': '245 mg/dl',
-      'status': 'Crítico',
-    },
-    {
-      'name': 'Luis Vega',
-      'type': 'Alta',
-      'time': '10:30 AM',
-      'glucose': '168 mg/dl',
-      'status': 'Crítico',
-    },
-    {
-      'name': 'Carlos Mendez',
-      'type': 'Alta',
-      'time': '07:20 AM',
-      'glucose': '98 mg/dl',
-      'status': 'Normal',
-    },
-    {
-      'name': 'Jorge Salazar',
-      'type': 'Alta',
-      'time': '07:20 AM',
-      'glucose': '210 mg/dl',
-      'status': 'Crítico',
-    },
-  ];
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAlerts();
+  }
+
+  Future<void> _loadAlerts() async {
+    print('🔴 DoctorAlertsScreen: Llamando a getMyPatientsAlerts...');
+    setState(() => _isLoading = true);
+    
+    final result = await AlertsService.getMyPatientsAlerts();
+    print('🔴 DoctorAlertsScreen: Respuesta recibida: ${result['success']}');
+    print('🔴 DoctorAlertsScreen: Alerts count: ${(result['alerts'] as List?)?.length ?? 0}');
+    
+    if (result['success']) {
+      setState(() {
+        _alerts = (result['alerts'] as List).cast<Map<String, dynamic>>();
+        _isLoading = false;
+      });
+    } else {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Error al cargar alertas')),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -62,17 +60,16 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
     // Filtrar por búsqueda (nombre del paciente)
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((alert) {
-        final name = alert['name']!.toLowerCase();
+        final name = (alert['patient_name'] ?? '').toLowerCase();
         return name.contains(_searchQuery.toLowerCase());
       }).toList();
     }
 
     // Filtrar por categoría
     if (_selectedFilter == 'Críticas') {
-      filtered = filtered.where((alert) => alert['status'] == 'Crítico').toList();
+      filtered = filtered.where((alert) => alert['severity'] == 'critico').toList();
     } else if (_selectedFilter == 'Recordatorios') {
-      // Filtrar recordatorios (ninguno en este caso)
-      filtered = [];
+      filtered = filtered.where((alert) => alert['alert_type'] == 'recordatorio').toList();
     }
 
     return filtered;
@@ -80,6 +77,7 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final filteredAlerts = _filteredAlerts;
 
@@ -190,22 +188,21 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
 
             // Lista de alertas
             Expanded(
-              child: filteredAlerts.isEmpty
-                  ? _buildEmptyState(isDark)
-                  : ListView.separated(
-                      itemCount: filteredAlerts.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        return _buildAlertCard(
-                          name: filteredAlerts[index]['name']!,
-                          type: filteredAlerts[index]['type']!,
-                          time: filteredAlerts[index]['time']!,
-                          glucose: filteredAlerts[index]['glucose']!,
-                          status: filteredAlerts[index]['status']!,
-                          isDark: isDark,
-                        );
-                      },
-                    ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredAlerts.isEmpty
+                      ? _buildEmptyState(isDark)
+                      : RefreshIndicator(
+                          onRefresh: _loadAlerts,
+                          child: ListView.separated(
+                            itemCount: filteredAlerts.length,
+                            separatorBuilder: (context, index) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final alert = filteredAlerts[index];
+                              return _buildAlertCard(alert, isDark);
+                            },
+                          ),
+                        ),
             ),
           ],
         ),
@@ -242,24 +239,29 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
     );
   }
 
-  Widget _buildAlertCard({
-    required String name,
-    required String type,
-    required String time,
-    required String glucose,
-    required String status,
-    required bool isDark,
-  }) {
+  Widget _buildAlertCard(Map<String, dynamic> alert, bool isDark) {
+    final patientName = alert['patient_name'] ?? 'Paciente';
+    final severity = alert['severity'] ?? 'info';
+    final title = alert['title'] ?? 'Alerta';
+    final glucoseValue = alert['glucose_value'];
+    final createdAt = DateTime.parse(alert['created_at']);
+    final timeStr = DateFormat('hh:mm a').format(createdAt);
+    
     Color statusColor;
-    switch (status) {
-      case 'Crítico':
+    String statusText;
+    
+    switch (severity) {
+      case 'critico':
         statusColor = const Color(0xFFC72331);
+        statusText = 'Crítico';
         break;
-      case 'Normal':
-        statusColor = const Color(0xFF337536);
+      case 'advertencia':
+        statusColor = const Color(0xFFFBC318);
+        statusText = 'Advertencia';
         break;
       default:
-        statusColor = const Color(0xFFFBC318);
+        statusColor = const Color(0xFF337536);
+        statusText = 'Normal';
     }
 
     return Card(
@@ -279,7 +281,7 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
+                    patientName,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -288,7 +290,7 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Tipo de glucosa: $type',
+                    title,
                     style: TextStyle(
                       fontSize: 13,
                       color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
@@ -306,20 +308,22 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
                         ),
                       ),
                       Text(
-                        time,
+                        timeStr,
                         style: TextStyle(
                           fontSize: 13,
                           color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Text(
-                        glucose,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
+                      if (glucoseValue != null) ...[
+                        const SizedBox(width: 16),
+                        Text(
+                          '${glucoseValue.toStringAsFixed(0)} mg/dl',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ],
@@ -333,7 +337,7 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                status,
+                statusText,
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,

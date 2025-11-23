@@ -399,6 +399,77 @@ class AlertsService {
     }
   }
 
+  /// Obtiene las alertas de todos los pacientes asignados al doctor
+  /// GET /api/alerts/my-patients
+  /// 
+  /// Retorna:
+  /// - success: bool
+  /// - alerts: List de alertas con estructura:
+  ///   {
+  ///     "id": int,
+  ///     "user_id": int,
+  ///     "patient_id": int,
+  ///     "patient_name": String,
+  ///     "glucose_record_id": int?,
+  ///     "glucose_value": double?,
+  ///     "alert_type": "critica" | "recordatorio",
+  ///     "severity": "critico" | "advertencia" | "info",
+  ///     "title": String,
+  ///     "message": String,
+  ///     "is_read": bool,
+  ///     "is_dismissed": bool,
+  ///     "created_at": String (ISO 8601),
+  ///     "read_at": String?,
+  ///     "dismissed_at": String?
+  ///   }
+  /// - message: String (en caso de error)
+  static Future<Map<String, dynamic>> getMyPatientsAlerts() async {
+    try {
+      final token = await AuthService.getToken();
+      final url = Uri.parse('$_baseUrl/api/alerts/my-patients');
+
+      print('📡 AlertsService: GET $_baseUrl/api/alerts/my-patients');
+      print('📡 AlertsService: Token presente: ${token != null}');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('📡 AlertsService: Status code: ${response.statusCode}');
+      print('📡 AlertsService: Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final alerts = data is Map && data.containsKey('alerts') 
+            ? data['alerts'] as List 
+            : (data is List ? data : []);
+        print('📡 AlertsService: Alertas extraídas: ${alerts.length}');
+        return {
+          'success': true,
+          'alerts': alerts,
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al obtener alertas de pacientes',
+          'alerts': [],
+        };
+      }
+    } catch (e) {
+      print('📡 AlertsService: Error: $e');
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}',
+        'alerts': [],
+      };
+    }
+  }
+
   /// Helper: Formatea el tiempo relativo de la alerta
   static String getTimeAgo(String createdAt) {
     final alertTime = DateTime.parse(createdAt);

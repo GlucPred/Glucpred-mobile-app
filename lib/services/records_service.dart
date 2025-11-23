@@ -292,6 +292,60 @@ class RecordsService {
     }
   }
 
+  /// Obtiene historial de un paciente específico (para uso del médico)
+  /// GET /api/records/user/{userId}/history?limit={limit}
+  /// 
+  /// Parámetros:
+  /// - userId: int (ID del paciente)
+  /// - limit: int (registros a obtener, default: 500)
+  /// 
+  /// Retorna:
+  /// - success: bool
+  /// - records: List de registros
+  /// - total: int
+  /// - message: String (en caso de error)
+  static Future<Map<String, dynamic>> getPatientHistory(int userId, {int limit = 500}) async {
+    try {
+      final token = await AuthService.getToken();
+      
+      final uri = Uri.parse('$_baseUrl/api/records/user/$userId/history').replace(
+        queryParameters: {'limit': limit.toString()},
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'records': data['records'] ?? [],
+          'total': data['total'] ?? 0,
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al obtener historial del paciente',
+          'records': [],
+          'total': 0,
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}',
+        'records': [],
+        'total': 0,
+      };
+    }
+  }
+
   /// Helper: Calcula porcentaje de lecturas en rango normal
   /// Útil para tarjetas de estadísticas en la UI
   static double calculateNormalPercentage(Map<String, dynamic> classifications, int totalReadings) {
@@ -313,6 +367,60 @@ class RecordsService {
         return 'red'; // Hiperglucemia crítica
       default:
         return 'gray';
+    }
+  }
+
+  /// Obtiene los registros de glucosa de todos los pacientes asignados al doctor
+  /// GET /api/records/my-patients
+  /// 
+  /// Retorna:
+  /// - success: bool
+  /// - records: List de registros con {id, user_id, patient_id, glucose_value, measurement_time, classification, created_at}
+  /// - message: String (en caso de error)
+  static Future<Map<String, dynamic>> getMyPatientsRecords() async {
+    try {
+      final token = await AuthService.getToken();
+      final url = Uri.parse('$_baseUrl/api/records/my-patients');
+
+      print('📡 RecordsService: GET $_baseUrl/api/records/my-patients');
+      print('📡 RecordsService: Token presente: ${token != null}');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('📡 RecordsService: Status code: ${response.statusCode}');
+      print('📡 RecordsService: Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final records = data is Map && data.containsKey('records') 
+            ? data['records'] as List 
+            : (data is List ? data : []);
+        print('📡 RecordsService: Registros extraídos: ${records.length}');
+        return {
+          'success': true,
+          'records': records,
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al obtener registros de pacientes',
+          'records': [],
+        };
+      }
+    } catch (e) {
+      print('📡 RecordsService: Error: $e');
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}',
+        'records': [],
+      };
     }
   }
 

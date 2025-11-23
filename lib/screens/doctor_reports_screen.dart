@@ -1,8 +1,11 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
+import '../services/records_service.dart';
 
 class DoctorReportsScreen extends StatefulWidget {
   const DoctorReportsScreen({super.key});
@@ -11,11 +14,127 @@ class DoctorReportsScreen extends StatefulWidget {
   State<DoctorReportsScreen> createState() => _DoctorReportsScreenState();
 }
 
-class _DoctorReportsScreenState extends State<DoctorReportsScreen> {
+class _DoctorReportsScreenState extends State<DoctorReportsScreen> with AutomaticKeepAliveClientMixin {
   String _selectedPeriod = 'Hoy';
+  bool _isLoading = false;
+  List<Map<String, dynamic>> _allRecords = [];
+  Map<int, String> _patientNames = {};
+  Map<int, Color> _patientColors = {};
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecords();
+  }
+
+  Future<void> _loadRecords() async {
+    print('🔵 DoctorReportsScreen: Llamando a getMyPatientsRecords...');
+    setState(() => _isLoading = true);
+    
+    final result = await RecordsService.getMyPatientsRecords();
+    print('🔵 DoctorReportsScreen: Respuesta recibida: ${result['success']}');
+    print('🔵 DoctorReportsScreen: Records count: ${(result['records'] as List?)?.length ?? 0}');
+    
+    if (result['success']) {
+      final records = result['records'] as List;
+      
+      // Crear mapa de nombres de pacientes y asignar colores
+      final patientIds = records.map((r) => r['patient_id'] as int).toSet().toList();
+      final colors = [
+        const Color(0xFF0073E6), // Azul
+        const Color(0xFFFF6B35), // Naranja
+        const Color(0xFF9B59B6), // Púrpura
+        const Color(0xFF2ECC71), // Verde
+        const Color(0xFFE74C3C), // Rojo
+      ];
+      
+      for (int i = 0; i < patientIds.length; i++) {
+        _patientColors[patientIds[i]] = colors[i % colors.length];
+        // El nombre real viene del backend, pero lo usaremos como ID si no está
+        _patientNames[patientIds[i]] = 'Paciente ${patientIds[i]}';
+      }
+      
+      setState(() {
+        _allRecords = records.cast<Map<String, dynamic>>();
+        _isLoading = false;
+      });
+    } else {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Error al cargar registros')),
+        );
+      }
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredRecords {
+    final now = DateTime.now();
+    DateTime startDate;
+
+    switch (_selectedPeriod) {
+      case 'Hoy':
+        startDate = DateTime(now.year, now.month, now.day);
+        break;
+      case 'Semana':
+        startDate = now.subtract(const Duration(days: 7));
+        break;
+      case 'Mes':
+        startDate = now.subtract(const Duration(days: 30));
+        break;
+      default:
+        startDate = DateTime(now.year, now.month, now.day);
+    }
+
+    return _allRecords.where((record) {
+      final measurementTime = DateTime.parse(record['measurement_time']);
+      return measurementTime.isAfter(startDate);
+    }).toList()
+      ..sort((a, b) => DateTime.parse(a['measurement_time'])
+          .compareTo(DateTime.parse(b['measurement_time'])));
+  }
+
+  Map<String, dynamic> get _statistics {
+    final filtered = _filteredRecords;
+    
+    if (filtered.isEmpty) {
+      return {
+        'average': 0.0,
+        'inRange': 0.0,
+        'activePatients': _patientColors.length,
+        'criticalAlerts': 0,
+      };
+    }
+
+    final sum = filtered.fold<double>(0, (prev, record) => prev + record['glucose_value']);
+    final average = sum / filtered.length;
+    
+    final inRange = filtered.where((r) {
+      final value = r['glucose_value'];
+      return value >= 70 && value <= 140;
+    }).length;
+    
+    final percentage = (inRange / filtered.length) * 100;
+    
+    final critical = filtered.where((r) {
+      final value = r['glucose_value'];
+      return value > 140 || value < 70;
+    }).length;
+
+    return {
+      'average': average,
+      'inRange': percentage,
+      'activePatients': _patientColors.length,
+      'criticalAlerts': critical,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -93,29 +212,50 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> {
             const SizedBox(height: 16),
 
             // Gráfica
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 250,
-                      child: CustomPaint(
-                        painter: _GlucoseChartPainter(_selectedPeriod),
-                        child: Container(),
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredRecords.isEmpty
+                    ? Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
+                          ),
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(40),
+                          child: Center(
+                            child: Text('No hay registros en este período'),
+                          ),
+                        ),
+                      )
+                    : Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
+                          child: Column(
+                            children: [
+                              SizedBox(
+                                height: 250,
+                                child: CustomPaint(
+                                  painter: _GlucoseChartPainter(
+                                    records: _filteredRecords,
+                                    patientColors: _patientColors,
+                                  ),
+                                  child: Container(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
             const SizedBox(height: 16),
 
             // Leyenda
@@ -166,7 +306,7 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> {
                 Expanded(
                   child: _buildStatCard(
                     title: 'Promedio general',
-                    value: '118',
+                    value: _statistics['average'].toStringAsFixed(0),
                     unit: 'mg/dL',
                     color: const Color(0xFFFBC318),
                     isDark: isDark,
@@ -176,8 +316,8 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> {
                 Expanded(
                   child: _buildStatCard(
                     title: '% en rango',
-                    value: '72',
-                    unit: 'mg/dL',
+                    value: _statistics['inRange'].toStringAsFixed(0),
+                    unit: '%',
                     color: const Color(0xFFC72331),
                     isDark: isDark,
                   ),
@@ -189,8 +329,8 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> {
               children: [
                 Expanded(
                   child: _buildStatCard(
-                    title: 'Paciente activos',
-                    value: '3',
+                    title: 'Pacientes activos',
+                    value: _statistics['activePatients'].toString(),
                     unit: 'cantidad',
                     color: const Color(0xFF0073E6),
                     isDark: isDark,
@@ -200,7 +340,7 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> {
                 Expanded(
                   child: _buildStatCard(
                     title: 'Alertas críticas',
-                    value: '2',
+                    value: _statistics['criticalAlerts'].toString(),
                     unit: 'cantidad',
                     color: const Color(0xFFC72331),
                     isDark: isDark,
@@ -852,14 +992,20 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> {
 
 // Painter para la gráfica de niveles de glucosa
 class _GlucoseChartPainter extends CustomPainter {
-  final String period;
+  final List<Map<String, dynamic>> records;
+  final Map<int, Color> patientColors;
 
-  _GlucoseChartPainter(this.period);
+  _GlucoseChartPainter({
+    required this.records,
+    required this.patientColors,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Definir límites de la gráfica (dejar espacio para etiquetas)
-    final chartLeft = 50.0; // Espacio para etiquetas del eje Y y "mg/dl"
+    if (records.isEmpty) return;
+
+    // Definir límites de la gráfica
+    final chartLeft = 50.0;
     final chartTop = 10.0;
     final chartRight = 10.0;
     final chartBottom = 30.0;
@@ -868,9 +1014,8 @@ class _GlucoseChartPainter extends CustomPainter {
 
     final paint = Paint()..style = PaintingStyle.fill;
 
-    // Bandas de color de fondo (de abajo hacia arriba, similar a la Imagen 1)
-    // Escala: 0-200 mg/dL
-    // Hipoglucemia (<70) - Cyan/Azul claro - 0 a 70 (35% inferior del gráfico)
+    // Bandas de color de fondo
+    // Hipoglucemia (<70)
     final hypoglycemiaHeight = chartHeight * 0.35;
     final hypoglycemiaRect = Rect.fromLTWH(
       chartLeft, 
@@ -878,10 +1023,10 @@ class _GlucoseChartPainter extends CustomPainter {
       chartWidth, 
       hypoglycemiaHeight
     );
-    paint.color = const Color(0xFFADD8E6); // Azul claro brillante
+    paint.color = const Color(0xFFADD8E6);
     canvas.drawRect(hypoglycemiaRect, paint);
 
-    // Normal (70-100) - Verde - 70 a 100 (15% del gráfico)
+    // Normal (70-100)
     final normalHeight = chartHeight * 0.15;
     final normalRect = Rect.fromLTWH(
       chartLeft, 
@@ -889,10 +1034,10 @@ class _GlucoseChartPainter extends CustomPainter {
       chartWidth, 
       normalHeight
     );
-    paint.color = const Color(0xFF90EE90); // Verde claro brillante
+    paint.color = const Color(0xFF90EE90);
     canvas.drawRect(normalRect, paint);
 
-    // Precaución (100-140) - Amarillo - 100 a 140 (20% del gráfico)
+    // Precaución (100-140)
     final cautionHeight = chartHeight * 0.20;
     final cautionRect = Rect.fromLTWH(
       chartLeft, 
@@ -900,10 +1045,10 @@ class _GlucoseChartPainter extends CustomPainter {
       chartWidth, 
       cautionHeight
     );
-    paint.color = const Color(0xFFFFD966); // Amarillo brillante
+    paint.color = const Color(0xFFFFD966);
     canvas.drawRect(cautionRect, paint);
 
-    // Crítico (>140) - Rosa/Rojo claro - 140 a 200 (30% superior del gráfico)
+    // Crítico (>140)
     final criticalHeight = chartHeight * 0.30;
     final criticalRect = Rect.fromLTWH(
       chartLeft, 
@@ -911,182 +1056,109 @@ class _GlucoseChartPainter extends CustomPainter {
       chartWidth, 
       criticalHeight
     );
-    paint.color = const Color(0xFFFFB6C1); // Rosa claro
+    paint.color = const Color(0xFFFFB6C1);
     canvas.drawRect(criticalRect, paint);
 
-    // Datos de los puntos según el período
-    List<Offset> blueLinePoints = [];
-    List<Offset> orangeLinePoints = [];
-    List<String> labels = [];
-    
-    // Configurar etiquetas según el período
-    if (period == 'Hoy') {
-      labels = ['0h', '4h', '8h', '12h', '16h', '20h', '24h'];
-    } else if (period == 'Semana') {
-      labels = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
-    } else { // Mes
-      labels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'];
-    }
-    
-    final pointSpacing = chartWidth / (labels.length - 1);
-    
-    // Función para convertir mg/dL a posición Y (escala 0-200)
+    // Función para convertir mg/dL a posición Y
     double mgdlToY(double mgdl) {
-      return chartTop + chartHeight * (1 - (mgdl / 200));
+      final clampedValue = mgdl.clamp(0.0, 200.0);
+      return chartTop + chartHeight * (1 - (clampedValue / 200));
     }
-    
-    // Definir puntos según el período
-    if (period == 'Hoy') {
-      // Vista por horas (0h a 24h)
-      final blueValues = [80.0, 95.0, 105.0, 115.0, 130.0, 150.0, 170.0];
-      final orangeValues = [75.0, 88.0, 98.0, 110.0, 125.0, 145.0, 165.0];
+
+    // Agrupar registros por paciente
+    final Map<int, List<Map<String, dynamic>>> recordsByPatient = {};
+    for (final record in records) {
+      final patientId = record['patient_id'] as int;
+      recordsByPatient.putIfAbsent(patientId, () => []).add(record);
+    }
+
+    // Dibujar líneas para cada paciente
+    for (final entry in recordsByPatient.entries) {
+      final patientId = entry.key;
+      final patientRecords = entry.value;
+      final color = patientColors[patientId] ?? const Color(0xFF0073E6);
+
+      if (patientRecords.length < 2) continue;
+
+      // Crear puntos para la línea
+      final points = <Offset>[];
+      final maxIndex = patientRecords.length - 1;
       
-      for (int i = 0; i < labels.length; i++) {
-        blueLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(blueValues[i])));
-        orangeLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(orangeValues[i])));
+      for (int i = 0; i < patientRecords.length; i++) {
+        final x = chartLeft + (chartWidth * i / maxIndex);
+        final y = mgdlToY(patientRecords[i]['glucose_value']);
+        points.add(Offset(x, y));
       }
-    } else if (period == 'Semana') {
-      // Vista por días (Lun a Dom)
-      final blueValues = [95.0, 110.0, 118.0, 125.0, 135.0, 155.0, 168.0];
-      final orangeValues = [92.0, 105.0, 115.0, 122.0, 132.0, 152.0, 165.0];
-      
-      for (int i = 0; i < labels.length; i++) {
-        blueLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(blueValues[i])));
-        orangeLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(orangeValues[i])));
+
+      // Dibujar línea
+      final linePaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round;
+
+      for (int i = 0; i < points.length - 1; i++) {
+        canvas.drawLine(points[i], points[i + 1], linePaint);
       }
-    } else { // Mes
-      // Vista por semanas (4 semanas)
-      final blueValues = [100.0, 115.0, 128.0, 142.0];
-      final orangeValues = [98.0, 112.0, 125.0, 138.0];
-      
-      for (int i = 0; i < labels.length; i++) {
-        blueLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(blueValues[i])));
-        orangeLinePoints.add(Offset(chartLeft + pointSpacing * i, mgdlToY(orangeValues[i])));
+
+      // Dibujar puntos
+      final pointPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.fill;
+
+      final pointBorderPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5;
+
+      for (final point in points) {
+        canvas.drawCircle(point, 5, pointBorderPaint);
+        canvas.drawCircle(point, 5, pointPaint);
       }
     }
 
-    // Dibujar línea azul con puntos
-    final blueLinePaint = Paint()
-      ..color = const Color(0xFF0073E6)
-      ..strokeWidth = 3.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final bluePath = Path();
-    bluePath.moveTo(blueLinePoints[0].dx, blueLinePoints[0].dy);
-    for (int i = 1; i < blueLinePoints.length; i++) {
-      bluePath.lineTo(blueLinePoints[i].dx, blueLinePoints[i].dy);
-    }
-    canvas.drawPath(bluePath, blueLinePaint);
-
-    // Dibujar puntos azules
-    final bluePointPaint = Paint()
-      ..color = const Color(0xFF0073E6)
-      ..style = PaintingStyle.fill;
-
-    final whiteBorderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
-
-    for (var point in blueLinePoints) {
-      // Borde blanco primero
-      canvas.drawCircle(point, 6, whiteBorderPaint);
-      // Punto azul encima
-      canvas.drawCircle(point, 4.5, bluePointPaint);
-    }
-
-    // Dibujar línea naranja con puntos
-    final orangeLinePaint = Paint()
-      ..color = const Color(0xFFFF8C42)
-      ..strokeWidth = 3.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final orangePath = Path();
-    orangePath.moveTo(orangeLinePoints[0].dx, orangeLinePoints[0].dy);
-    for (int i = 1; i < orangeLinePoints.length; i++) {
-      orangePath.lineTo(orangeLinePoints[i].dx, orangeLinePoints[i].dy);
-    }
-    canvas.drawPath(orangePath, orangeLinePaint);
-
-    // Dibujar puntos naranjas
-    final orangePointPaint = Paint()
-      ..color = const Color(0xFFFF8C42)
-      ..style = PaintingStyle.fill;
-
-    for (var point in orangeLinePoints) {
-      // Borde blanco primero
-      canvas.drawCircle(point, 6, whiteBorderPaint);
-      // Punto naranja encima
-      canvas.drawCircle(point, 4.5, orangePointPaint);
-    }
-
-    // Etiquetas del eje X
+    // Dibujar etiquetas del eje Y
     final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
+      textAlign: TextAlign.right,
+      textDirection: ui.TextDirection.ltr,
     );
 
-    for (int i = 0; i < labels.length; i++) {
-      textPainter.text = TextSpan(
-        text: labels[i],
-        style: const TextStyle(
-          color: Color(0xFF6C7C93), 
-          fontSize: 10, 
-          fontWeight: FontWeight.w500,
-        ),
-      );
-      textPainter.layout();
-      final xPos = chartLeft + (pointSpacing * i) - (textPainter.width / 2);
-      final yPos = chartTop + chartHeight + 8;
-      textPainter.paint(
-        canvas,
-        Offset(xPos, yPos),
-      );
-    }
-
-    // Etiquetas del eje Y (mg/dL)
     final yLabels = ['200', '150', '100', '50', '0'];
-    final yValues = [0.0, 0.25, 0.5, 0.75, 1.0]; // Posiciones relativas
-    
     for (int i = 0; i < yLabels.length; i++) {
+      final y = chartTop + (chartHeight * i / (yLabels.length - 1));
       textPainter.text = TextSpan(
         text: yLabels[i],
-        style: const TextStyle(
-          color: Color(0xFF6C7C93), 
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-        ),
+        style: const TextStyle(fontSize: 10, color: Color(0xFF6C7C93)),
       );
       textPainter.layout();
-      final yPos = chartTop + (chartHeight * yValues[i]) - (textPainter.height / 2);
-      // Posicionar números más a la derecha para dejar espacio al texto rotado
-      textPainter.paint(
-        canvas,
-        Offset(22, yPos),
-      );
+      textPainter.paint(canvas, Offset(chartLeft - 25, y - 5));
     }
-    
-    // Etiqueta "mg/dl" en el eje Y (rotada, a la izquierda de los números)
-    canvas.save();
-    final labelYPos = chartTop + (chartHeight / 2);
-    canvas.translate(8, labelYPos); // Más a la izquierda
-    canvas.rotate(-1.5708); // -90 grados en radianes
-    
+
+    // Etiqueta "mg/dl"
     textPainter.text = const TextSpan(
       text: 'mg/dl',
-      style: TextStyle(
-        color: Color(0xFF6C7C93), 
-        fontSize: 10, 
-        fontWeight: FontWeight.w600,
-      ),
+      style: TextStyle(fontSize: 10, color: Color(0xFF6C7C93)),
     );
     textPainter.layout();
-    textPainter.paint(canvas, Offset(-textPainter.width / 2, 0));
-    canvas.restore();
+    textPainter.paint(canvas, Offset(5, chartTop + chartHeight / 2 - 10));
+
+    // Dibujar etiquetas del eje X (simplificadas)
+    final xLabelCount = 6;
+    for (int i = 0; i < xLabelCount; i++) {
+      final x = chartLeft + (chartWidth * i / (xLabelCount - 1));
+      final recordIndex = (records.length - 1) * i ~/ (xLabelCount - 1);
+      if (recordIndex < records.length) {
+        final time = DateTime.parse(records[recordIndex]['measurement_time']);
+        final label = '${time.day}/${time.month}';
+        
+        textPainter.text = TextSpan(
+          text: label,
+          style: const TextStyle(fontSize: 10, color: Color(0xFF6C7C93)),
+        );
+        textPainter.layout();
+        textPainter.paint(canvas, Offset(x - 15, chartTop + chartHeight + 5));
+      }
+    }
   }
 
   @override

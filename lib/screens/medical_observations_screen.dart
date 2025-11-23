@@ -64,7 +64,7 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
     final query = _searchController.text.toLowerCase();
     setState(() {
       _filteredObservations = _observations.where((obs) {
-        final text = (obs['observation_text'] ?? '').toLowerCase();
+        final text = (obs['observation'] ?? obs['observation_text'] ?? '').toLowerCase();
         return text.contains(query);
       }).toList();
     });
@@ -301,6 +301,7 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
     final createdAt = DateTime.parse(observation['created_at']);
     final dateStr = DateFormat('dd/MM/yyyy HH:mm').format(createdAt);
     final observationId = observation['id'];
+    final observationText = observation['observation'] ?? observation['observation_text'] ?? '';
     
     return Card(
       elevation: 0,
@@ -353,7 +354,7 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              observation['observation'],
+              observationText,
               style: TextStyle(
                 fontSize: 14,
                 color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
