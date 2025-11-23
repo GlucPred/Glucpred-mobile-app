@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'config/theme.dart';
-import 'screens/login_selection_screen.dart';
+import 'screens/splash_screen.dart';
 
 // ValueNotifier global para el estado del tema oscuro
 final ValueNotifier<bool> isDarkModeNotifier = ValueNotifier<bool>(false);
@@ -41,8 +41,7 @@ class GlucPredApp extends StatelessWidget {
             Locale('en', 'US'), // Inglés
           ],
           locale: const Locale('es', 'ES'),
-          home: const LoginSelectionScreen(),
-      // home: const MainNavigation(), // Will be used after login
+          home: const SplashScreen(),
         );
       },
     );

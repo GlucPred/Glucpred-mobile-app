@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import '../services/doctor_patient_service.dart';
+import 'package:intl/intl.dart';
 
 class MedicalObservationsScreen extends StatefulWidget {
+  final int patientUserId;
   final String patientName;
 
   const MedicalObservationsScreen({
     super.key,
+    required this.patientUserId,
     required this.patientName,
   });
 
@@ -14,25 +18,143 @@ class MedicalObservationsScreen extends StatefulWidget {
 
 class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _observations = [];
+  List<Map<String, dynamic>> _filteredObservations = [];
+  bool _isLoading = true;
 
-  final List<Map<String, String>> _observations = [
-    {
-      'date': '03/10/2025',
-      'text': 'Control estable, mantener dosis actual.',
-    },
-    {
-      'date': '05/08/2025',
-      'text': 'Ajuste de medición, programar seguimiento.',
-    },
-    {
-      'date': '22/07/2025',
-      'text': 'Ajuste de medición, programar monitoreo.',
-    },
-    {
-      'date': '03/07/2025',
-      'text': 'Paciente refiere mejora, continuar monitoreo.',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadObservations();
+    _searchController.addListener(_filterObservations);
+  }
+
+  Future<void> _loadObservations() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await DoctorPatientService.getObservations(widget.patientUserId);
+
+      if (result['success']) {
+        final observations = List<Map<String, dynamic>>.from(result['observations'] ?? []);
+        setState(() {
+          _observations = observations;
+          _filteredObservations = observations;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'Error al cargar observaciones')),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  void _filterObservations() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredObservations = _observations.where((obs) {
+        final text = (obs['observation'] ?? obs['observation_text'] ?? '').toLowerCase();
+        return text.contains(query);
+      }).toList();
+    });
+  }
+
+  Future<void> _deleteObservation(int observationId) async {
+    final result = await DoctorPatientService.deleteObservation(observationId);
+
+    if (result['success']) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Observación eliminada')),
+        );
+        _loadObservations(); // Recargar lista
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Error al eliminar'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showAddObservationDialog() {
+    final textController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Nueva observación'),
+          content: TextField(
+            controller: textController,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              hintText: 'Escribe la observación...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final text = textController.text.trim();
+                if (text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Escribe algo antes de guardar')),
+                  );
+                  return;
+                }
+
+                Navigator.pop(context);
+
+                final result = await DoctorPatientService.createObservation(
+                  widget.patientUserId,
+                  text,
+                );
+
+                if (result['success']) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Observación creada')),
+                    );
+                    _loadObservations();
+                  }
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(result['message'] ?? 'Error'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void dispose() {
@@ -128,40 +250,40 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
 
             // Lista de observaciones
             Expanded(
-              child: _observations.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.description_outlined,
-                            size: 80,
-                            color: isDark ? const Color(0xFF6C7C93) : const Color(0xFFB3C3D3),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredObservations.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.description_outlined,
+                                size: 80,
+                                color: isDark ? const Color(0xFF6C7C93) : const Color(0xFFB3C3D3),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _searchController.text.isEmpty
+                                    ? 'No hay observaciones médicas'
+                                    : 'No se encontraron observaciones',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No hay observaciones médicas',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(20),
-                      itemCount: _observations.length,
-                      itemBuilder: (context, index) {
-                        final observation = _observations[index];
-                        return _buildObservationCard(
-                          observation['date']!,
-                          observation['text']!,
-                          isDark,
-                        );
-                      },
-                    ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(20),
+                          itemCount: _filteredObservations.length,
+                          itemBuilder: (context, index) {
+                            final observation = _filteredObservations[index];
+                            return _buildObservationCard(observation, isDark);
+                          },
+                        ),
             ),
           ],
         ),
@@ -174,99 +296,13 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
     );
   }
 
-  void _showAddObservationDialog() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1A1F3A) : Colors.white,
-        title: Text(
-          'Nueva observación médica',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-              decoration: InputDecoration(
-                labelText: 'Título',
-                labelStyle: TextStyle(
-                  color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-                ),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFF0073E6), width: 2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descriptionController,
-              maxLines: 4,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-              decoration: InputDecoration(
-                labelText: 'Descripción',
-                labelStyle: TextStyle(
-                  color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-                ),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFF0073E6), width: 2),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: TextStyle(
-                color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (descriptionController.text.isNotEmpty) {
-                setState(() {
-                  _observations.insert(0, {
-                    'date': _getCurrentDate(),
-                    'text': descriptionController.text,
-                  });
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Observación agregada exitosamente'),
-                    backgroundColor: Color(0xFF337536),
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0073E6),
-            ),
-            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildObservationCard(String date, String text, bool isDark) {
+  Widget _buildObservationCard(Map<String, dynamic> observation, bool isDark) {
+    final createdAt = DateTime.parse(observation['created_at']);
+    final dateStr = DateFormat('dd/MM/yyyy HH:mm').format(createdAt);
+    final observationId = observation['id'];
+    final observationText = observation['observation'] ?? observation['observation_text'] ?? '';
+    
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -296,7 +332,7 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  date,
+                  dateStr,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -311,14 +347,14 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
                     size: 20,
                   ),
                   onPressed: () {
-                    _showDeleteConfirmation(date);
+                    _showDeleteConfirmation(observationId);
                   },
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              text,
+              observationText,
               style: TextStyle(
                 fontSize: 14,
                 color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
@@ -330,7 +366,7 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
     );
   }
 
-  void _showDeleteConfirmation(String date) {
+  void _showDeleteConfirmation(int observationId) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     showDialog(
@@ -363,16 +399,8 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              setState(() {
-                _observations.removeWhere((obs) => obs['date'] == date);
-              });
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Observación eliminada'),
-                  backgroundColor: Color(0xFFC72331),
-                ),
-              );
+              _deleteObservation(observationId);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFC72331),
@@ -385,10 +413,5 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
         ],
       ),
     );
-  }
-
-  String _getCurrentDate() {
-    final now = DateTime.now();
-    return '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
   }
 }

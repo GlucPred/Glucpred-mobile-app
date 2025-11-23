@@ -60,7 +60,7 @@ class RiskCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Riesgo de ${prediction.timeFrame}',
+                    'Riesgo de ${prediction.majorRiskWithPercentage}',
                     style: TextStyle(
                       fontSize: 14,
                       color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
