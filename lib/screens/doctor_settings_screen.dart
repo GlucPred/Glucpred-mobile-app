@@ -147,28 +147,29 @@ class _DoctorSettingsScreenState extends State<DoctorSettingsScreen> {
           SizedBox(
             width: double.infinity,
             height: 56,
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
               onPressed: () {
                 _showLogoutDialog();
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0073E6),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
+              icon: const Icon(Icons.logout),
+              label: const Text(
                 'Cerrar sesión',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFC72331),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
-          
+
           const SizedBox(height: 32),
         ],
       ),
@@ -335,6 +336,7 @@ class _DoctorSettingsScreenState extends State<DoctorSettingsScreen> {
   }
 
   void _showLogoutDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -347,13 +349,19 @@ class _DoctorSettingsScreenState extends State<DoctorSettingsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                '¿Estas seguro de cerrar sesión?',
+              Icon(
+                Icons.logout_rounded,
+                size: 48,
+                color: const Color(0xFFC72331),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '¿Estás seguro de cerrar sesión?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
               const SizedBox(height: 12),
@@ -369,28 +377,22 @@ class _DoctorSettingsScreenState extends State<DoctorSettingsScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton(
+                    child: OutlinedButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginSelectionScreen(),
-                          ),
-                          (route) => false,
-                        );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0073E6),
-                        foregroundColor: Colors.white,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isDark ? Colors.white70 : const Color(0xFF6C7C93),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        elevation: 0,
+                        side: BorderSide(
+                          color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB),
+                        ),
                       ),
                       child: const Text(
-                        'Si',
+                        'Cancelar',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -403,9 +405,16 @@ class _DoctorSettingsScreenState extends State<DoctorSettingsScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginSelectionScreen(),
+                          ),
+                          (route) => false,
+                        );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0073E6),
+                        backgroundColor: const Color(0xFFC72331),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
@@ -414,7 +423,7 @@ class _DoctorSettingsScreenState extends State<DoctorSettingsScreen> {
                         elevation: 0,
                       ),
                       child: const Text(
-                        'No',
+                        'Cerrar sesión',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
