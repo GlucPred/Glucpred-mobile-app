@@ -80,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         currentReading = GlucoseReading(
           value: record['glucose_value'].toDouble(),
-          timestamp: DateTime.parse(record['measurement_time']),
+          timestamp: _parseUtcTimestamp(record['measurement_time']),
           status: _mapClassificationToStatus(record['classification']),
         );
       });
@@ -91,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       setState(() {
         trendData = records.map((r) {
-          final dt = DateTime.parse(r['measurement_time']);
+          final dt = _parseUtcTimestamp(r['measurement_time']);
           return TrendPoint(
             timestamp: dt,
             value: r['glucose_value'].toDouble(),
@@ -199,9 +199,24 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Parsea timestamps del backend (UTC) a DateTime local
+  static DateTime _parseUtcTimestamp(String isoString) {
+    final parsed = DateTime.parse(isoString);
+    // Si el backend no incluye 'Z', forzar interpretación UTC → local
+    if (!isoString.endsWith('Z') && !isoString.contains('+')) {
+      return DateTime.utc(parsed.year, parsed.month, parsed.day,
+          parsed.hour, parsed.minute, parsed.second).toLocal();
+    }
+    return parsed.toLocal();
+  }
+
   String _getTimeAgo(DateTime timestamp) {
     final diff = DateTime.now().difference(timestamp);
-    if (diff.inMinutes < 60) {
+    if (diff.isNegative) {
+      return 'ahora';
+    } else if (diff.inSeconds < 60) {
+      return '${diff.inSeconds} segundos';
+    } else if (diff.inMinutes < 60) {
       return '${diff.inMinutes} minutos';
     } else if (diff.inHours < 24) {
       return '${diff.inHours} horas';
