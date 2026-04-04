@@ -4,7 +4,8 @@ class AppTheme {
   // Colores de la paleta oficial (modo claro)
   static const Color primaryColor = Color(0xFF0073E6); // Azul principal
   static const Color successColor = Color(0xFF337536); // Verde
-  static const Color warningColor = Color(0xFFFBC318); // Amarillo
+  static const Color warningColor = Color(0xFFB8860B); // Amarillo accesible (4.5:1 sobre blanco)
+  static const Color warningColorBright = Color(0xFFFBC318); // Amarillo original (solo sobre fondos oscuros)
   static const Color dangerColor = Color(0xFFC72331); // Rojo
   static const Color textPrimaryColor = Color(0xFF000000); // Negro
   static const Color textSecondaryColor = Color(0xFF6C7C93); // Gris
@@ -50,13 +51,13 @@ class AppTheme {
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         selectedItemColor: primaryColor, // #0073E6
         unselectedItemColor: textSecondaryColor, // #6C7C93
-        showUnselectedLabels: false,
+        showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
       ),
       textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: textPrimaryColor),
-        bodyMedium: TextStyle(color: textPrimaryColor),
-        bodySmall: TextStyle(color: textSecondaryColor),
+        bodyLarge: TextStyle(color: textPrimaryColor, height: 1.5),
+        bodyMedium: TextStyle(color: textPrimaryColor, height: 1.5),
+        bodySmall: TextStyle(color: textSecondaryColor, height: 1.5),
       ),
     );
   }
@@ -96,14 +97,14 @@ class AppTheme {
         backgroundColor: darkSurfaceColor,
         selectedItemColor: Color(0xFF4A9EFF), // Azul más claro para mejor contraste
         unselectedItemColor: darkTextSecondaryColor,
-        showUnselectedLabels: false,
+        showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
       textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: darkTextPrimaryColor),
-        bodyMedium: TextStyle(color: darkTextPrimaryColor),
-        bodySmall: TextStyle(color: darkTextSecondaryColor),
+        bodyLarge: TextStyle(color: darkTextPrimaryColor, height: 1.5),
+        bodyMedium: TextStyle(color: darkTextPrimaryColor, height: 1.5),
+        bodySmall: TextStyle(color: darkTextSecondaryColor, height: 1.5),
         titleLarge: TextStyle(color: darkTextPrimaryColor, fontWeight: FontWeight.bold),
         titleMedium: TextStyle(color: darkTextPrimaryColor, fontWeight: FontWeight.w600),
         titleSmall: TextStyle(color: darkTextSecondaryColor),
