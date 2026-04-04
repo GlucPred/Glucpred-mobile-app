@@ -546,29 +546,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTextField(
-                    controller: _heightController,
-                    label: 'Altura (cm)',
-                    icon: Icons.height,
-                    enabled: _isEditing,
-                    isDark: isDark,
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildTextField(
-                    controller: TextEditingController(text: _calculateIMC()),
-                    label: 'IMC',
-                    icon: Icons.analytics_outlined,
-                    enabled: false,
-                    isDark: isDark,
-                  ),
-                ),
-              ],
+            _buildTextField(
+              controller: _heightController,
+              label: 'Altura (cm)',
+              icon: Icons.height,
+              enabled: _isEditing,
+              isDark: isDark,
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              controller: TextEditingController(text: _calculateIMC()),
+              label: 'IMC',
+              icon: Icons.analytics_outlined,
+              enabled: false,
+              isDark: isDark,
             ),
             const SizedBox(height: 12),
             _buildTextField(
@@ -701,16 +693,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         filled: true,
         fillColor: enabled
-            ? (isDark ? AppTheme.darkCardColor.withOpacity(0.5) : Colors.grey.shade50)
-            : (isDark ? AppTheme.darkCardColor.withOpacity(0.3) : Colors.grey.shade100),
+            ? (isDark ? AppTheme.darkCardColor.withOpacity(0.5) : Colors.white)
+            : (isDark ? AppTheme.darkCardColor.withOpacity(0.3) : Colors.grey.shade50),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(
+            color: isDark ? AppTheme.darkCardColor : Colors.grey.shade300,
+            width: 1,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: isDark ? AppTheme.darkCardColor : Colors.grey.shade200,
+            color: isDark ? AppTheme.darkCardColor : Colors.grey.shade300,
             width: 1,
           ),
         ),
@@ -723,7 +718,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(
+            color: isDark ? AppTheme.darkCardColor : Colors.grey.shade300,
+            width: 1,
+          ),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
