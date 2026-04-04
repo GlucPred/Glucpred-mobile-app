@@ -1,3 +1,8 @@
+# AI/Agent tool configs
+.agents/
+.claude/
+skills-lock.json
+
 # Miscellaneous
 *.class
 *.log

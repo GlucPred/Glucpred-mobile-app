@@ -176,31 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // Google button
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _isLoading ? null : () {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Iniciar con Google')));
-                        },
-                        icon: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                          child: const Icon(Icons.g_mobiledata, color: Color(0xFF0073E6), size: 20),
-                        ),
-                        label: const Text('Continuar con Google'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: BorderSide(color: isDark ? const Color(0xFF2C3E50) : const Color(0xFFE0E6EB)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
+                    
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
