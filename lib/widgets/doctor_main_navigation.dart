@@ -4,6 +4,7 @@ import '../screens/doctor_profile_screen.dart';
 import '../screens/doctor_reports_screen.dart';
 import '../screens/doctor_alerts_screen.dart';
 import '../screens/doctor_settings_screen.dart';
+import '../config/theme.dart';
 
 class DoctorMainNavigation extends StatefulWidget {
   const DoctorMainNavigation({super.key});
@@ -16,8 +17,8 @@ class _DoctorMainNavigationState extends State<DoctorMainNavigation> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
-    DoctorProfileScreen(),
     DoctorHomeScreen(),
+    DoctorProfileScreen(),
     DoctorReportsScreen(),
     DoctorAlertsScreen(),
     DoctorSettingsScreen(),
@@ -38,16 +39,16 @@ class _DoctorMainNavigationState extends State<DoctorMainNavigation> {
           });
         },
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF0073E6),
-        unselectedItemColor: const Color(0xFF6C7C93),
+        selectedItemColor: AppTheme.primaryColor,
+        unselectedItemColor: AppTheme.textSecondaryColor,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Perfil',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.show_chart),
