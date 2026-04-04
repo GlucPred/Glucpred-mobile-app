@@ -30,6 +30,10 @@ class ApiClient {
       try {
         attempts++;
         final response = await request().timeout(_timeout);
+        if (response.statusCode == 401) {
+          await _secureStorage.delete(key: 'access_token');
+          return response;
+        }
         return response;
       } on TimeoutException {
         if (attempts > _maxRetries) {

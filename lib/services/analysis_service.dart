@@ -1,12 +1,9 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:glucpred/config/env_config.dart';
-import 'auth_service.dart';
+import 'api_client.dart';
 
 /// Servicio para comunicarse con el analysis-service
 /// Endpoint: POST /api/analysis/predict
 class AnalysisService {
-  static final String _baseUrl = EnvConfig.apiBaseUrl;
   /// Enviar predicción de episodio de glucosa
   /// 
   /// Combina datos del usuario (glucosa, insulina, carbohidratos)
@@ -37,17 +34,7 @@ class AnalysisService {
     int? hour,
   }) async {
     try {
-      final token = await AuthService.getToken();
-      
-      if (token == null) {
-        return {
-          'success': false,
-          'message': 'No se encontró token de autenticación',
-        };
-      }
-
-      // Preparar el body
-      final body = {
+      final body = <String, dynamic>{
         'glucose': glucose,
         'insulin_30min': insulin30min,
         'carbs_30min': carbs30min,
@@ -57,14 +44,7 @@ class AnalysisService {
         'hour': hour ?? DateTime.now().hour,
       };
 
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/analysis/predict'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode(body),
-      );
+      final response = await ApiClient.post('/api/analysis/predict', body: body);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -80,7 +60,7 @@ class AnalysisService {
         final error = json.decode(response.body);
         return {
           'success': false,
-          'message': error['error'] ?? 'Error al realizar predicción',
+          'message': error['message'] ?? error['error'] ?? 'Error al realizar predicción',
         };
       }
     } catch (e) {
@@ -94,9 +74,7 @@ class AnalysisService {
   /// Verificar el estado de salud del servicio de análisis
   static Future<Map<String, dynamic>> checkHealth() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/analysis/health'),
-      );
+      final response = await ApiClient.get('/api/analysis/health', auth: false);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

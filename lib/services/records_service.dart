@@ -1,13 +1,10 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:glucpred/config/env_config.dart';
-import 'auth_service.dart';
-import 'package:glucpred/utils/logger.dart';
+import 'package:glucpred/utils/logger.dart';
+import 'api_client.dart';
 
 /// Servicio para gestionar registros de glucosa desde el backend
 /// Endpoints base: /api/records
 class RecordsService {
-  static final String _baseUrl = EnvConfig.apiBaseUrl;
 
   /// Obtiene la última medición de glucosa del usuario
   /// GET /api/records/latest
@@ -18,16 +15,7 @@ class RecordsService {
   /// - message: String (en caso de error)
   static Future<Map<String, dynamic>> getLatestReading() async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/records/latest');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await ApiClient.get('/api/records/latest');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -44,7 +32,7 @@ class RecordsService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener última medición',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener última medición',
         };
       }
     } catch (e) {
@@ -71,23 +59,13 @@ class RecordsService {
     DateTime? measurementTime,
   }) async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/records/');
-
-      final body = {
+      final body = <String, dynamic>{
         'glucose_value': glucoseValue,
         if (measurementTime != null)
           'measurement_time': measurementTime.toIso8601String(),
       };
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(body),
-      );
+      final response = await ApiClient.post('/api/records/', body: body);
 
       final data = jsonDecode(response.body);
 
@@ -95,12 +73,12 @@ class RecordsService {
         return {
           'success': true,
           'record': data['record'],
-          'message': data['message'] ?? 'Registro creado exitosamente',
+          'message': data['message'] ?? data['error'] ?? 'Registro creado exitosamente',
         };
       } else {
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al crear registro',
+          'message': data['message'] ?? data['error'] ?? 'Error al crear registro',
         };
       }
     } catch (e) {
@@ -123,15 +101,9 @@ class RecordsService {
   /// - message: String (en caso de error)
   static Future<Map<String, dynamic>> getStatistics({int hours = 24}) async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/records/statistics?hours=$hours');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+      final response = await ApiClient.get(
+        '/api/records/statistics',
+        queryParams: {'hours': hours.toString()},
       );
 
       if (response.statusCode == 200) {
@@ -144,7 +116,7 @@ class RecordsService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener estadísticas',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener estadísticas',
         };
       }
     } catch (e) {
@@ -174,15 +146,9 @@ class RecordsService {
   /// - message: String (en caso de error)
   static Future<Map<String, dynamic>> getTrend({int hours = 12}) async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/records/trend?hours=$hours');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+      final response = await ApiClient.get(
+        '/api/records/trend',
+        queryParams: {'hours': hours.toString()},
       );
 
       if (response.statusCode == 200) {
@@ -197,7 +163,7 @@ class RecordsService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener tendencia',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener tendencia',
           'records': [],
           'total': 0,
         };
@@ -236,9 +202,6 @@ class RecordsService {
     DateTime? endDate,
   }) async {
     try {
-      final token = await AuthService.getToken();
-      
-      // Construir query parameters
       final queryParams = <String, String>{
         'limit': limit.toString(),
         'offset': offset.toString(),
@@ -252,16 +215,9 @@ class RecordsService {
         queryParams['end_date'] = endDate.toIso8601String();
       }
 
-      final uri = Uri.parse('$_baseUrl/api/records/history').replace(
-        queryParameters: queryParams,
-      );
-
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+      final response = await ApiClient.get(
+        '/api/records/history',
+        queryParams: queryParams,
       );
 
       if (response.statusCode == 200) {
@@ -278,7 +234,7 @@ class RecordsService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener historial',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener historial',
           'records': [],
           'total': 0,
         };
@@ -307,18 +263,9 @@ class RecordsService {
   /// - message: String (en caso de error)
   static Future<Map<String, dynamic>> getPatientHistory(int userId, {int limit = 500}) async {
     try {
-      final token = await AuthService.getToken();
-      
-      final uri = Uri.parse('$_baseUrl/api/records/user/$userId/history').replace(
-        queryParameters: {'limit': limit.toString()},
-      );
-
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+      final response = await ApiClient.get(
+        '/api/records/user/$userId/history',
+        queryParams: {'limit': limit.toString()},
       );
 
       if (response.statusCode == 200) {
@@ -332,7 +279,7 @@ class RecordsService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener historial del paciente',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener historial del paciente',
           'records': [],
           'total': 0,
         };
@@ -380,19 +327,9 @@ class RecordsService {
   /// - message: String (en caso de error)
   static Future<Map<String, dynamic>> getMyPatientsRecords() async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/records/my-patients');
+      AppLogger.debug('RecordsService: GET /api/records/my-patients');
 
-      AppLogger.debug('RecordsService: GET $_baseUrl/api/records/my-patients');
-      AppLogger.debug('RecordsService: Token presente: ${token != null}');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await ApiClient.get('/api/records/my-patients');
 
       AppLogger.debug('RecordsService: Status code: ${response.statusCode}');
 
@@ -410,7 +347,7 @@ class RecordsService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener registros de pacientes',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener registros de pacientes',
           'records': [],
         };
       }
