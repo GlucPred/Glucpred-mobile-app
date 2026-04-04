@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../config/theme.dart';
 import '../widgets/glucose_chart_widget.dart';
 import '../services/records_service.dart';
 import '../services/auth_service.dart';
@@ -89,6 +90,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
   @override
   Widget build(BuildContext context) {
     final stats = _calculateStats();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
       appBar: AppBar(
@@ -206,7 +208,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                                 'Promedio',
                       '${stats['average']}',
                       'mg/dl',
-                      const Color(0xFFFBC318),
+                      isDark ? AppTheme.warningColorBright : AppTheme.warningColor,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -237,7 +239,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                       'Máximo',
                       '${stats['max']}',
                       'mg/dl',
-                      const Color(0xFFFBC318),
+                      isDark ? AppTheme.warningColorBright : AppTheme.warningColor,
                     ),
                   ),
                 ],
@@ -306,13 +308,14 @@ class _ChartsScreenState extends State<ChartsScreen> {
   }
 
   Widget _buildLegend() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         Row(
           children: [
             Expanded(child: _buildLegendItem('Normal (70 - 100)', const Color(0xFF337536))),
             const SizedBox(width: 8),
-            Expanded(child: _buildLegendItem('Precaución (100 - 140)', const Color(0xFFFBC318))),
+            Expanded(child: _buildLegendItem('Precaución (100 - 140)', isDark ? AppTheme.warningColorBright : AppTheme.warningColor)),
           ],
         ),
         const SizedBox(height: 8),
@@ -818,7 +821,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                     ),
                     pw.TableRow(
                       decoration: pw.BoxDecoration(
-                        color: PdfColor.fromHex('#FBC318'),
+                        color: PdfColor.fromHex('#B8860B'),
                       ),
                       children: [
                         _buildTableCell('Precaución', isHeader: true),

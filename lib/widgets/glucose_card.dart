@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import '../models/glucose_reading.dart';
 
 class GlucoseCard extends StatelessWidget {
@@ -9,10 +10,10 @@ class GlucoseCard extends StatelessWidget {
     required this.reading,
   });
 
-  Color _getStatusColor() {
+  Color _getStatusColor(bool isDark) {
     switch (reading.status) {
       case 'high':
-        return const Color(0xFFFBC318); // Amarillo de la paleta
+        return isDark ? AppTheme.warningColorBright : AppTheme.warningColor;
       case 'low':
         return const Color(0xFFC72331); // Rojo de la paleta
       default:
@@ -43,7 +44,7 @@ class GlucoseCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 64,
                 fontWeight: FontWeight.bold,
-                color: _getStatusColor(),
+                color: _getStatusColor(isDark),
               ),
             ),
             Text(
@@ -60,7 +61,7 @@ class GlucoseCard extends StatelessWidget {
                 vertical: 12,
               ),
               decoration: BoxDecoration(
-                color: _getStatusColor(),
+                color: _getStatusColor(isDark),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Text(

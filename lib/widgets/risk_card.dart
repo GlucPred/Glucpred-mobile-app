@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import '../models/risk_prediction.dart';
 
 class RiskCard extends StatelessWidget {
@@ -9,12 +10,12 @@ class RiskCard extends StatelessWidget {
     required this.prediction,
   });
 
-  Color _getRiskColor() {
+  Color _getRiskColor(bool isDark) {
     switch (prediction.level) {
       case 'high':
         return const Color(0xFFC72331); // Rojo de la paleta
       case 'medium':
-        return const Color(0xFFFBC318); // Amarillo de la paleta
+        return isDark ? AppTheme.warningColorBright : AppTheme.warningColor;
       default:
         return const Color(0xFF337536); // Verde de la paleta
     }
@@ -42,7 +43,7 @@ class RiskCard extends StatelessWidget {
           children: [
             Icon(
               _getRiskIcon(),
-              color: _getRiskColor(),
+              color: _getRiskColor(isDark),
               size: 40,
             ),
             const SizedBox(width: 16),
@@ -75,17 +76,17 @@ class RiskCard extends StatelessWidget {
                 vertical: 8,
               ),
               decoration: BoxDecoration(
-                color: _getRiskColor().withOpacity(0.1),
+                color: _getRiskColor(isDark).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: _getRiskColor(),
+                  color: _getRiskColor(isDark),
                   width: 1.5,
                 ),
               ),
               child: Text(
                 prediction.levelLabel.split(' ')[1], // Solo "bajo", "moderado", "alto"
                 style: TextStyle(
-                  color: _getRiskColor(),
+                  color: _getRiskColor(isDark),
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),
