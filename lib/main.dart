@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'config/theme.dart';
 import 'screens/splash_screen.dart';
@@ -10,9 +9,6 @@ final ValueNotifier<bool> isDarkModeNotifier = ValueNotifier<bool>(false);
 Future<void> main() async {
   // Asegurar que los bindings de Flutter estén inicializados
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Cargar el archivo .env
-  await dotenv.load(fileName: ".env");
   
   runApp(const GlucPredApp());
 }

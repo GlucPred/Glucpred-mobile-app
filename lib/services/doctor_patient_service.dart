@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:glucpred/config/env_config.dart';
 import 'auth_service.dart';
 
 /// Servicio para gestión de relaciones médico-paciente y observaciones médicas
@@ -13,7 +13,7 @@ import 'auth_service.dart';
 /// - PUT /api/doctor-patient/observations/{id} - Actualizar observación
 /// - DELETE /api/doctor-patient/observations/{id} - Eliminar observación
 class DoctorPatientService {
-  static final String _baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://localhost:5000';
+  static final String _baseUrl = EnvConfig.apiBaseUrl;
 
   /// Obtiene resumen de todos los pacientes del médico autenticado
   /// 

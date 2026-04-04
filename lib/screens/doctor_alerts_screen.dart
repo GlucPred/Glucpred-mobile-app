@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/alerts_service.dart';
+import '../utils/logger.dart';
 
 class DoctorAlertsScreen extends StatefulWidget {
   const DoctorAlertsScreen({super.key});
@@ -26,12 +27,11 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> with AutomaticK
   }
 
   Future<void> _loadAlerts() async {
-    print('🔴 DoctorAlertsScreen: Llamando a getMyPatientsAlerts...');
+    AppLogger.debug('DoctorAlertsScreen: Loading patient alerts...');
     setState(() => _isLoading = true);
     
     final result = await AlertsService.getMyPatientsAlerts();
-    print('🔴 DoctorAlertsScreen: Respuesta recibida: ${result['success']}');
-    print('🔴 DoctorAlertsScreen: Alerts count: ${(result['alerts'] as List?)?.length ?? 0}');
+    AppLogger.debug('DoctorAlertsScreen: Success=${result['success']}, count=${(result['alerts'] as List?)?.length ?? 0}');
     
     if (result['success']) {
       setState(() {

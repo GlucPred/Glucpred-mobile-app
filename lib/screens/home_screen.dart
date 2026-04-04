@@ -9,6 +9,7 @@ import '../widgets/trend_chart.dart';
 import '../models/glucose_reading.dart';
 import '../models/risk_prediction.dart';
 import '../models/trend_point.dart';
+import '../utils/logger.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,10 +49,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  /// Inicia actualización automática cada 5 segundos (para pruebas)
-  /// TODO: Cambiar a Duration(minutes: 5) en producción
+  /// Inicia actualización automática cada 5 minutos
   void _startAutoUpdate() {
-    _updateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    _updateTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
       if (mounted) {
         // Actualización automática en silencio (sin mostrar errores)
         _loadData(isInitial: false, silentError: true);
@@ -261,21 +261,9 @@ class _HomeScreenState extends State<HomeScreen> {
       final healthData = await HealthConnectService.readHealthData();
       
       // Log de datos de Health Connect
-      print('═══════════════════════════════════════════════════════');
-      print('📊 DATOS DE HEALTH CONNECT:');
-      print('  ${healthData['is_real_data'] == true ? "✅ DATOS REALES" : "⚠️  DATOS DEFAULT (sin permisos o sin datos)"}');
-      print('  ❤️  Frecuencia cardíaca: ${healthData['heart_rate']} bpm');
-      print('  👟 Pasos (15 min): ${healthData['steps_15min']}');
-      print('  🔥 Calorías (15 min): ${healthData['calories_15min']} kcal');
-      print('═══════════════════════════════════════════════════════');
-      print('📝 DATOS DEL USUARIO:');
-      print('  💉 Glucosa: $glucose mg/dL');
-      print('  💊 Insulina (30 min): $insulin unidades');
-      print('  🍞 Carbohidratos (30 min): $carbs gramos');
-      print('  🕐 Hora del día: ${DateTime.now().hour}');
-      print('═══════════════════════════════════════════════════════');
-      print('🚀 ENVIANDO AL BACKEND /api/analysis/predict...');
-      print('═══════════════════════════════════════════════════════');
+      AppLogger.debug('Health Connect: ${healthData['is_real_data'] == true ? "DATOS REALES" : "DATOS DEFAULT"}');
+      AppLogger.debug('Glucosa: $glucose mg/dL, Insulina: $insulin u, Carbohidratos: $carbs g');
+      AppLogger.debug('Enviando al backend /api/analysis/predict...');
 
       // 2. Enviar predicción al backend
       final result = await AnalysisService.predictEpisode(
@@ -288,22 +276,11 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       
       // Log de respuesta del backend
-      print('📥 RESPUESTA DEL BACKEND:');
-      print('  ✅ Éxito: ${result['success']}');
       if (result['success']) {
-        print('  🎯 Predicción: ${result['prediction']}');
-        print('  ⚠️  Nivel de alerta: ${result['alert_level']}');
-        print('  💡 Recomendación: ${result['recommendation']}');
-        print('  📊 Probabilidades:');
-        final probs = result['probabilities'] as Map<String, dynamic>;
-        probs.forEach((key, value) {
-          final percentage = (value * 100).toStringAsFixed(1);
-          print('     - $key: $percentage%');
-        });
+        AppLogger.info('Predicción: ${result['prediction']}, Alerta: ${result['alert_level']}');
       } else {
-        print('  ❌ Error: ${result['message']}');
+        AppLogger.error('Predicción fallida: ${result['message']}');
       }
-      print('═══════════════════════════════════════════════════════');
 
       setState(() {
         _isSubmitting = false;

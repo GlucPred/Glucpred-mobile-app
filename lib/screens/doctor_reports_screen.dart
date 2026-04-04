@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import '../services/records_service.dart';
+import '../utils/logger.dart';
 
 class DoctorReportsScreen extends StatefulWidget {
   const DoctorReportsScreen({super.key});
@@ -31,12 +32,11 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> with Automati
   }
 
   Future<void> _loadRecords() async {
-    print('🔵 DoctorReportsScreen: Llamando a getMyPatientsRecords...');
+    AppLogger.debug('DoctorReportsScreen: Loading patient records...');
     setState(() => _isLoading = true);
     
     final result = await RecordsService.getMyPatientsRecords();
-    print('🔵 DoctorReportsScreen: Respuesta recibida: ${result['success']}');
-    print('🔵 DoctorReportsScreen: Records count: ${(result['records'] as List?)?.length ?? 0}');
+    AppLogger.debug('DoctorReportsScreen: Success=${result['success']}, count=${(result['records'] as List?)?.length ?? 0}');
     
     if (result['success']) {
       final records = result['records'] as List;

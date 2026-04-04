@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:glucpred/config/env_config.dart';
+import 'package:glucpred/utils/logger.dart';
 import 'auth_service.dart';
 
 /// Servicio para gestionar alertas de glucosa desde el backend
 /// Endpoints base: /api/alerts
 class AlertsService {
-  static final String _baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://localhost:5000';
+  static final String _baseUrl = EnvConfig.apiBaseUrl;
 
   /// Obtiene alertas del usuario con filtros
   /// GET /api/alerts/?type={tipo}&severity={severidad}&is_read={leido}
@@ -428,8 +429,8 @@ class AlertsService {
       final token = await AuthService.getToken();
       final url = Uri.parse('$_baseUrl/api/alerts/my-patients');
 
-      print('📡 AlertsService: GET $_baseUrl/api/alerts/my-patients');
-      print('📡 AlertsService: Token presente: ${token != null}');
+      AppLogger.debug('AlertsService: GET $_baseUrl/api/alerts/my-patients');
+      AppLogger.debug('AlertsService: Token presente: ${token != null}');
 
       final response = await http.get(
         url,
@@ -439,15 +440,14 @@ class AlertsService {
         },
       );
 
-      print('📡 AlertsService: Status code: ${response.statusCode}');
-      print('📡 AlertsService: Response body: ${response.body}');
+      AppLogger.debug('AlertsService: Status code: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final alerts = data is Map && data.containsKey('alerts') 
             ? data['alerts'] as List 
             : (data is List ? data : []);
-        print('📡 AlertsService: Alertas extraídas: ${alerts.length}');
+        AppLogger.debug('AlertsService: Alertas extraídas: ${alerts.length}');
         return {
           'success': true,
           'alerts': alerts,
@@ -461,7 +461,7 @@ class AlertsService {
         };
       }
     } catch (e) {
-      print('📡 AlertsService: Error: $e');
+      AppLogger.error('AlertsService: Error', e);
       return {
         'success': false,
         'message': 'Error de conexión: ${e.toString()}',

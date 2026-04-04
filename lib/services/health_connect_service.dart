@@ -1,4 +1,5 @@
 import 'package:health/health.dart';
+import 'package:glucpred/utils/logger.dart';
 
 /// Servicio helper para leer datos de Health Connect
 /// 
@@ -25,17 +26,17 @@ class HealthConnectService {
   /// de lo contrario devuelve valores por defecto
   static Future<Map<String, dynamic>> readHealthData() async {
     try {
-      print('🔍 Intentando leer datos de Health Connect...');
+      AppLogger.debug('Intentando leer datos de Health Connect...');
       
       // Verificar y solicitar permisos
       final hasPermissions = await requestPermissions();
       
       if (!hasPermissions) {
-        print('⚠️  Health Connect: Permisos no otorgados, usando valores default');
+        AppLogger.debug('Health Connect: Permisos no otorgados, usando valores default');
         return _getDefaultValues();
       }
 
-      print('✅ Permisos otorgados, leyendo datos...');
+      AppLogger.debug('Permisos otorgados, leyendo datos...');
       
       final now = DateTime.now();
       final fifteenMinutesAgo = now.subtract(const Duration(minutes: 15));
@@ -47,7 +48,7 @@ class HealthConnectService {
         endTime: now,
       );
 
-      print('📊 Puntos de datos recibidos: ${healthData.length}');
+      AppLogger.debug('Puntos de datos recibidos: ${healthData.length}');
 
       // Procesar datos
       double? heartRate;
@@ -55,7 +56,7 @@ class HealthConnectService {
       double totalCalories = 0.0;
 
       for (var point in healthData) {
-        print('   - Tipo: ${point.type}, Valor: ${point.value}');
+        AppLogger.debug('  Tipo: ${point.type}, Valor: ${point.value}');
         
         if (point.type == HealthDataType.HEART_RATE) {
           // Tomar la última lectura de frecuencia cardíaca
@@ -73,9 +74,9 @@ class HealthConnectService {
       final hasRealData = heartRate != null || totalSteps > 0 || totalCalories > 0;
       
       if (hasRealData) {
-        print('✅ Health Connect: Datos REALES leídos exitosamente');
+        AppLogger.info('Health Connect: Datos reales leídos exitosamente');
       } else {
-        print('⚠️  Health Connect: No hay datos en últimos 15 min, usando defaults');
+        AppLogger.debug('Health Connect: No hay datos en últimos 15 min, usando defaults');
       }
 
       return {
@@ -86,7 +87,7 @@ class HealthConnectService {
         'is_real_data': hasRealData,
       };
     } catch (e) {
-      print('❌ Health Connect: Error al leer datos: $e');
+      AppLogger.error('Health Connect: Error al leer datos', e);
       return _getDefaultValues();
     }
   }
@@ -107,7 +108,7 @@ class HealthConnectService {
       final available = await _health.hasPermissions(_types);
       return available ?? false;
     } catch (e) {
-      print('❌ Health Connect no disponible: $e');
+      AppLogger.error('Health Connect no disponible', e);
       return false;
     }
   }
@@ -120,7 +121,7 @@ class HealthConnectService {
   /// - READ_ACTIVE_ENERGY_BURNED
   static Future<bool> requestPermissions() async {
     try {
-      print('🔐 Verificando permisos de Health Connect...');
+      AppLogger.debug('Verificando permisos de Health Connect...');
       
       // Verificar permisos existentes
       bool? hasPermissions = await _health.hasPermissions(
@@ -132,13 +133,13 @@ class HealthConnectService {
         ],
       );
       
-      print('   Permisos actuales: ${hasPermissions == true ? "✅ Otorgados" : "❌ No otorgados"}');
+      AppLogger.debug('Permisos actuales: ${hasPermissions == true ? "Otorgados" : "No otorgados"}');
       
       if (hasPermissions == true) {
         return true;
       }
 
-      print('📱 Intentando abrir Health Connect...');
+      AppLogger.debug('Intentando abrir Health Connect...');
       
       // Intentar diferentes métodos para solicitar permisos
       try {
@@ -153,28 +154,20 @@ class HealthConnectService {
         );
         
         if (granted) {
-          print('✅ Health Connect: Permisos otorgados (método 1)');
+          AppLogger.info('Health Connect: Permisos otorgados');
           return true;
         }
       } catch (e) {
-        print('⚠️  Método 1 falló: $e');
+        AppLogger.debug('Método requestAuthorization falló: $e');
       }
       
       // Si llegamos aquí, no se otorgaron permisos
-      print('❌ No se pudieron obtener permisos automáticamente');
-      print('');
-      print('INSTRUCCIONES MANUALES:');
-      print('1. Abre la app "Health Connect" en tu dispositivo');
-      print('2. Ve a "Permisos de apps" → "GlucPred"');
-      print('3. Activa los permisos para:');
-      print('   - Frecuencia cardíaca');
-      print('   - Pasos');
-      print('   - Calorías activas');
-      print('4. Vuelve a esta app e intenta de nuevo');
+      AppLogger.debug('No se pudieron obtener permisos automáticamente. '
+          'El usuario debe abrir Health Connect y otorgar permisos manualmente.');
       
       return false;
     } catch (e) {
-      print('❌ Error al solicitar permisos de Health Connect: $e');
+      AppLogger.error('Error al solicitar permisos de Health Connect', e);
       return false;
     }
   }
@@ -182,12 +175,9 @@ class HealthConnectService {
   /// Abrir la configuración de Health Connect manualmente
   static Future<void> openHealthConnectSettings() async {
     try {
-      // Este método intenta abrir la configuración de Health Connect
-      // En Android 14+, puede que necesites hacerlo manualmente
-      print('🔧 Intentando abrir configuración de Health Connect...');
-      print('   Si no se abre automáticamente, búscala manualmente en Ajustes');
+      AppLogger.debug('Intentando abrir configuración de Health Connect...');
     } catch (e) {
-      print('❌ Error: $e');
+      AppLogger.error('Error abriendo Health Connect settings', e);
     }
   }
 }

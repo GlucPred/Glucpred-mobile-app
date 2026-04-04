@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:glucpred/config/env_config.dart';
 import 'auth_service.dart';
+import 'package:glucpred/utils/logger.dart';
 
 /// Servicio para gestionar registros de glucosa desde el backend
 /// Endpoints base: /api/records
 class RecordsService {
-  static final String _baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://localhost:5000';
+  static final String _baseUrl = EnvConfig.apiBaseUrl;
 
   /// Obtiene la última medición de glucosa del usuario
   /// GET /api/records/latest
@@ -382,8 +383,8 @@ class RecordsService {
       final token = await AuthService.getToken();
       final url = Uri.parse('$_baseUrl/api/records/my-patients');
 
-      print('📡 RecordsService: GET $_baseUrl/api/records/my-patients');
-      print('📡 RecordsService: Token presente: ${token != null}');
+      AppLogger.debug('RecordsService: GET $_baseUrl/api/records/my-patients');
+      AppLogger.debug('RecordsService: Token presente: ${token != null}');
 
       final response = await http.get(
         url,
@@ -393,15 +394,14 @@ class RecordsService {
         },
       );
 
-      print('📡 RecordsService: Status code: ${response.statusCode}');
-      print('📡 RecordsService: Response body: ${response.body}');
+      AppLogger.debug('RecordsService: Status code: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final records = data is Map && data.containsKey('records') 
             ? data['records'] as List 
             : (data is List ? data : []);
-        print('📡 RecordsService: Registros extraídos: ${records.length}');
+        AppLogger.debug('RecordsService: Registros extraídos: ${records.length}');
         return {
           'success': true,
           'records': records,
@@ -415,7 +415,7 @@ class RecordsService {
         };
       }
     } catch (e) {
-      print('📡 RecordsService: Error: $e');
+      AppLogger.error('RecordsService: Error', e);
       return {
         'success': false,
         'message': 'Error de conexión: ${e.toString()}',

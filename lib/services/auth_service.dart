@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:glucpred/config/env_config.dart';
 
 class AuthService {
-  static final String _baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://localhost:5000';
+  static const _secureStorage = FlutterSecureStorage();
+  static final String _baseUrl = EnvConfig.apiBaseUrl;
 
   // Registro de usuario (Paciente o Médico)
   static Future<Map<String, dynamic>> register({
@@ -33,7 +36,7 @@ class AuthService {
           'confirmar_password': confirmarPassword,
           'rol': rol,
         }),
-      );
+      ).timeout(const Duration(seconds: 30));
 
       final data = jsonDecode(response.body);
 
@@ -68,16 +71,17 @@ class AuthService {
     }
   }
 
-  // Guardar token en SharedPreferences
+  // Guardar token en secure storage
   static Future<void> _saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('access_token', token);
+    await _secureStorage.write(key: 'access_token', value: token);
   }
 
   // Guardar información del usuario
   static Future<void> _saveUserInfo(Map<String, dynamic> user) async {
+    // Store user_id in secure storage (used for auth)
+    await _secureStorage.write(key: 'user_id', value: user['id'].toString());
+    // Non-sensitive user info stays in SharedPreferences
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_id', user['id'].toString());
     await prefs.setString('username', user['username'] ?? '');
     await prefs.setString('email', user['email'] ?? '');
     await prefs.setString('nombre_completo', user['nombre_completo'] ?? '');
@@ -105,7 +109,7 @@ class AuthService {
           'username': username,
           'password': password,
         }),
-      );
+      ).timeout(const Duration(seconds: 30));
 
       final data = jsonDecode(response.body);
 
@@ -142,15 +146,15 @@ class AuthService {
 
   // Obtener token guardado
   static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('access_token');
+    return await _secureStorage.read(key: 'access_token');
   }
 
   // Obtener información del usuario
   static Future<Map<String, dynamic>> getUserInfo() async {
+    final userId = await _secureStorage.read(key: 'user_id');
     final prefs = await SharedPreferences.getInstance();
     return {
-      'user_id': prefs.getString('user_id'),
+      'user_id': userId,
       'username': prefs.getString('username'),
       'email': prefs.getString('email'),
       'nombre_completo': prefs.getString('nombre_completo'),
@@ -173,8 +177,15 @@ class AuthService {
 
   // Cerrar sesión
   static Future<void> logout() async {
+    // Clear secure storage (tokens and user_id)
+    await _secureStorage.deleteAll();
+    // Clear only auth-related shared preferences
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await prefs.remove('username');
+    await prefs.remove('email');
+    await prefs.remove('nombre_completo');
+    await prefs.remove('rol');
+    await prefs.remove('es_primer_inicio');
   }
 
   // Verificar si el usuario está autenticado
@@ -204,7 +215,7 @@ class AuthService {
           if (token != null) 'Authorization': 'Bearer $token',
         },
         body: jsonEncode(body),
-      );
+      ).timeout(const Duration(seconds: 30));
 
       final data = jsonDecode(response.body);
 
@@ -253,7 +264,7 @@ class AuthService {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
         },
-      );
+      ).timeout(const Duration(seconds: 30));
 
       final data = jsonDecode(response.body);
 
@@ -296,7 +307,7 @@ class AuthService {
           if (token != null) 'Authorization': 'Bearer $token',
         },
         body: jsonEncode(body),
-      );
+      ).timeout(const Duration(seconds: 30));
 
       final data = jsonDecode(response.body);
 

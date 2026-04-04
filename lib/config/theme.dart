@@ -109,25 +109,25 @@ class AppTheme {
         titleSmall: TextStyle(color: darkTextSecondaryColor),
       ),
       switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return Colors.white; // Thumb blanco cuando está activado
           }
           return const Color(0xFF8B9AAB); // Thumb gris cuando está desactivado
         }),
-        trackColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return const Color(0xFF0073E6).withOpacity(0.5); // Track semi-transparente cuando está activado
           }
           return const Color(0xFF3D4A5C); // Track oscuro cuando está desactivado
         }),
-        trackOutlineColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return const Color(0xFF0073E6); // Borde azul cuando está activado
           }
           return const Color(0xFF3D4A5C); // Sin borde visible cuando está desactivado
         }),
-        overlayColor: MaterialStateProperty.all(primaryColor.withOpacity(0.2)),
+        overlayColor: WidgetStateProperty.all(primaryColor.withOpacity(0.2)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

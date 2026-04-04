@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:glucpred/config/env_config.dart';
 import 'auth_service.dart';
 
 /// Servicio para comunicarse con el analysis-service
 /// Endpoint: POST /api/analysis/predict
 class AnalysisService {
-  static final String _baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://localhost:5000';
+  static final String _baseUrl = EnvConfig.apiBaseUrl;
   /// Enviar predicción de episodio de glucosa
   /// 
   /// Combina datos del usuario (glucosa, insulina, carbohidratos)

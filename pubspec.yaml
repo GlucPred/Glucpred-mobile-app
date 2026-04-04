@@ -38,8 +38,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   image_picker: ^1.0.7
   http: ^1.4.0
-  flutter_dotenv: ^5.2.1
   shared_preferences: ^2.3.5
+  flutter_secure_storage: ^9.2.4
   pdf: ^3.11.1
   printing: ^5.13.4
   path_provider: ^2.1.5
@@ -82,7 +82,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - .env
+    - assets/icon/Glucpred_logo.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
