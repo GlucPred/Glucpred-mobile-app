@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:glucpred/config/env_config.dart';
-import 'auth_service.dart';
+import 'api_client.dart';
 
 /// Servicio para gestión de relaciones médico-paciente y observaciones médicas
 /// 
@@ -13,7 +11,6 @@ import 'auth_service.dart';
 /// - PUT /api/doctor-patient/observations/{id} - Actualizar observación
 /// - DELETE /api/doctor-patient/observations/{id} - Eliminar observación
 class DoctorPatientService {
-  static final String _baseUrl = EnvConfig.apiBaseUrl;
 
   /// Obtiene resumen de todos los pacientes del médico autenticado
   /// 
@@ -23,24 +20,7 @@ class DoctorPatientService {
   /// - patients: Lista con nombre, edad, última glucosa, estado, alertas
   static Future<Map<String, dynamic>> getPatientsSummary() async {
     try {
-      final token = await AuthService.getToken();
-      
-      if (token == null) {
-        return {
-          'success': false,
-          'message': 'No hay sesión activa',
-        };
-      }
-
-      final url = Uri.parse('$_baseUrl/api/doctor-patient/patients-summary');
-      
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await ApiClient.get('/api/doctor-patient/patients-summary');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -54,7 +34,7 @@ class DoctorPatientService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener pacientes',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener pacientes',
         };
       }
     } catch (e) {
@@ -81,25 +61,9 @@ class DoctorPatientService {
     String period = 'day',
   }) async {
     try {
-      final token = await AuthService.getToken();
-      
-      if (token == null) {
-        return {
-          'success': false,
-          'message': 'No hay sesión activa',
-        };
-      }
-
-      final url = Uri.parse(
-        '$_baseUrl/api/doctor-patient/patient/$patientUserId/detail?period=$period',
-      );
-      
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+      final response = await ApiClient.get(
+        '/api/doctor-patient/patient/$patientUserId/detail',
+        queryParams: {'period': period},
       );
 
       if (response.statusCode == 200) {
@@ -116,7 +80,7 @@ class DoctorPatientService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener detalle del paciente',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener detalle del paciente',
         };
       }
     } catch (e) {
@@ -137,42 +101,23 @@ class DoctorPatientService {
     String observationText,
   ) async {
     try {
-      final token = await AuthService.getToken();
-      
-      if (token == null) {
-        return {
-          'success': false,
-          'message': 'No hay sesión activa',
-        };
-      }
-
-      final url = Uri.parse(
-        '$_baseUrl/api/doctor-patient/patient/$patientUserId/observations',
-      );
-      
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'observation_text': observationText,
-        }),
+      final response = await ApiClient.post(
+        '/api/doctor-patient/patient/$patientUserId/observations',
+        body: {'observation_text': observationText},
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'message': data['message'] ?? 'Observación creada exitosamente',
+          'message': data['message'] ?? data['error'] ?? 'Observación creada exitosamente',
           'observation': data['observation'],
         };
       } else {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al crear observación',
+          'message': data['message'] ?? data['error'] ?? 'Error al crear observación',
         };
       }
     } catch (e) {
@@ -195,25 +140,9 @@ class DoctorPatientService {
     int offset = 0,
   }) async {
     try {
-      final token = await AuthService.getToken();
-      
-      if (token == null) {
-        return {
-          'success': false,
-          'message': 'No hay sesión activa',
-        };
-      }
-
-      final url = Uri.parse(
-        '$_baseUrl/api/doctor-patient/patient/$patientUserId/observations?limit=$limit&offset=$offset',
-      );
-      
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+      final response = await ApiClient.get(
+        '/api/doctor-patient/patient/$patientUserId/observations',
+        queryParams: {'limit': limit.toString(), 'offset': offset.toString()},
       );
 
       if (response.statusCode == 200) {
@@ -228,7 +157,7 @@ class DoctorPatientService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener observaciones',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener observaciones',
         };
       }
     } catch (e) {
@@ -249,42 +178,23 @@ class DoctorPatientService {
     String observationText,
   ) async {
     try {
-      final token = await AuthService.getToken();
-      
-      if (token == null) {
-        return {
-          'success': false,
-          'message': 'No hay sesión activa',
-        };
-      }
-
-      final url = Uri.parse(
-        '$_baseUrl/api/doctor-patient/observations/$observationId',
-      );
-      
-      final response = await http.put(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'observation_text': observationText,
-        }),
+      final response = await ApiClient.put(
+        '/api/doctor-patient/observations/$observationId',
+        body: {'observation_text': observationText},
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'message': data['message'] ?? 'Observación actualizada exitosamente',
+          'message': data['message'] ?? data['error'] ?? 'Observación actualizada exitosamente',
           'observation': data['observation'],
         };
       } else {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al actualizar observación',
+          'message': data['message'] ?? data['error'] ?? 'Error al actualizar observación',
         };
       }
     } catch (e) {
@@ -301,38 +211,21 @@ class DoctorPatientService {
   /// - observationId: ID de la observación
   static Future<Map<String, dynamic>> deleteObservation(int observationId) async {
     try {
-      final token = await AuthService.getToken();
-      
-      if (token == null) {
-        return {
-          'success': false,
-          'message': 'No hay sesión activa',
-        };
-      }
-
-      final url = Uri.parse(
-        '$_baseUrl/api/doctor-patient/observations/$observationId',
-      );
-      
-      final response = await http.delete(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+      final response = await ApiClient.delete(
+        '/api/doctor-patient/observations/$observationId',
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'message': data['message'] ?? 'Observación eliminada exitosamente',
+          'message': data['message'] ?? data['error'] ?? 'Observación eliminada exitosamente',
         };
       } else {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al eliminar observación',
+          'message': data['message'] ?? data['error'] ?? 'Error al eliminar observación',
         };
       }
     } catch (e) {
@@ -379,24 +272,7 @@ class DoctorPatientService {
   /// Retorna lista de pacientes que pueden ser asignados
   static Future<Map<String, dynamic>> getAvailablePatients() async {
     try {
-      final token = await AuthService.getToken();
-      
-      if (token == null) {
-        return {
-          'success': false,
-          'message': 'No hay sesión activa',
-        };
-      }
-
-      final url = Uri.parse('$_baseUrl/api/doctor-patient/available-patients');
-      
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await ApiClient.get('/api/doctor-patient/available-patients');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -409,7 +285,7 @@ class DoctorPatientService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener pacientes disponibles',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener pacientes disponibles',
         };
       }
     } catch (e) {
@@ -426,40 +302,23 @@ class DoctorPatientService {
   /// - patientUserId: ID del paciente a asignar
   static Future<Map<String, dynamic>> assignPatient(int patientUserId) async {
     try {
-      final token = await AuthService.getToken();
-      
-      if (token == null) {
-        return {
-          'success': false,
-          'message': 'No hay sesión activa',
-        };
-      }
-
-      final url = Uri.parse('$_baseUrl/api/doctor-patient/assign');
-      
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'patient_user_id': patientUserId,
-        }),
+      final response = await ApiClient.post(
+        '/api/doctor-patient/assign',
+        body: {'patient_user_id': patientUserId},
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'message': data['message'] ?? 'Paciente asignado exitosamente',
+          'message': data['message'] ?? data['error'] ?? 'Paciente asignado exitosamente',
           'relation': data['relation'],
         };
       } else {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al asignar paciente',
+          'message': data['message'] ?? data['error'] ?? 'Error al asignar paciente',
         };
       }
     } catch (e) {
@@ -476,39 +335,22 @@ class DoctorPatientService {
   /// - patientUserId: ID del paciente
   static Future<Map<String, dynamic>> deactivatePatient(int patientUserId) async {
     try {
-      final token = await AuthService.getToken();
-      
-      if (token == null) {
-        return {
-          'success': false,
-          'message': 'No hay sesión activa',
-        };
-      }
-
-      final url = Uri.parse('$_baseUrl/api/doctor-patient/deactivate');
-      
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'patient_user_id': patientUserId,
-        }),
+      final response = await ApiClient.post(
+        '/api/doctor-patient/deactivate',
+        body: {'patient_user_id': patientUserId},
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'message': data['message'] ?? 'Relación desactivada exitosamente',
+          'message': data['message'] ?? data['error'] ?? 'Relación desactivada exitosamente',
         };
       } else {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al desactivar relación',
+          'message': data['message'] ?? data['error'] ?? 'Error al desactivar relación',
         };
       }
     } catch (e) {

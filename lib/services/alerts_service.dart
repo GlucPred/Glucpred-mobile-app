@@ -1,14 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:glucpred/config/env_config.dart';
+import 'package:glucpred/config/theme.dart';
 import 'package:glucpred/utils/logger.dart';
-import 'auth_service.dart';
+import 'api_client.dart';
 
 /// Servicio para gestionar alertas de glucosa desde el backend
 /// Endpoints base: /api/alerts
 class AlertsService {
-  static final String _baseUrl = EnvConfig.apiBaseUrl;
 
   /// Obtiene alertas del usuario con filtros
   /// GET /api/alerts/?type={tipo}&severity={severidad}&is_read={leido}
@@ -47,8 +45,6 @@ class AlertsService {
     int offset = 0,
   }) async {
     try {
-      final token = await AuthService.getToken();
-      
       final queryParams = <String, String>{
         'type': type,
         'limit': limit.toString(),
@@ -63,16 +59,9 @@ class AlertsService {
         queryParams['is_read'] = isRead.toString();
       }
 
-      final uri = Uri.parse('$_baseUrl/api/alerts/').replace(
-        queryParameters: queryParams,
-      );
-
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+      final response = await ApiClient.get(
+        '/api/alerts/',
+        queryParams: queryParams,
       );
 
       if (response.statusCode == 200) {
@@ -89,7 +78,7 @@ class AlertsService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener alertas',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener alertas',
           'alerts': [],
           'total': 0,
         };
@@ -112,16 +101,7 @@ class AlertsService {
   /// - unread_count: int
   static Future<Map<String, dynamic>> getUnreadCount() async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/alerts/unread-count');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await ApiClient.get('/api/alerts/unread-count');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -156,15 +136,9 @@ class AlertsService {
   /// - period_hours: int
   static Future<Map<String, dynamic>> getCriticalCount({int hours = 24}) async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/alerts/critical-count?hours=$hours');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+      final response = await ApiClient.get(
+        '/api/alerts/critical-count',
+        queryParams: {'hours': hours.toString()},
       );
 
       if (response.statusCode == 200) {
@@ -203,16 +177,7 @@ class AlertsService {
   /// - message: String
   static Future<Map<String, dynamic>> markAsRead(int alertId) async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/alerts/$alertId/read');
-
-      final response = await http.put(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await ApiClient.put('/api/alerts/$alertId/read');
 
       final data = jsonDecode(response.body);
 
@@ -220,12 +185,12 @@ class AlertsService {
         return {
           'success': true,
           'alert': data['alert'],
-          'message': data['message'] ?? 'Alerta marcada como leída',
+          'message': data['message'] ?? data['error'] ?? 'Alerta marcada como leída',
         };
       } else {
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al marcar alerta como leída',
+          'message': data['message'] ?? data['error'] ?? 'Error al marcar alerta como leída',
         };
       }
     } catch (e) {
@@ -245,16 +210,7 @@ class AlertsService {
   /// - message: String
   static Future<Map<String, dynamic>> markAllAsRead() async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/alerts/read-all');
-
-      final response = await http.put(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await ApiClient.put('/api/alerts/read-all');
 
       final data = jsonDecode(response.body);
 
@@ -262,12 +218,12 @@ class AlertsService {
         return {
           'success': true,
           'count': data['count'] ?? 0,
-          'message': data['message'] ?? 'Alertas marcadas como leídas',
+          'message': data['message'] ?? data['error'] ?? 'Alertas marcadas como leídas',
         };
       } else {
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al marcar alertas como leídas',
+          'message': data['message'] ?? data['error'] ?? 'Error al marcar alertas como leídas',
         };
       }
     } catch (e) {
@@ -289,28 +245,19 @@ class AlertsService {
   /// - message: String
   static Future<Map<String, dynamic>> dismissAlert(int alertId) async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/alerts/$alertId');
-
-      final response = await http.delete(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await ApiClient.delete('/api/alerts/$alertId');
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'message': data['message'] ?? 'Alerta descartada exitosamente',
+          'message': data['message'] ?? data['error'] ?? 'Alerta descartada exitosamente',
         };
       } else {
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al descartar alerta',
+          'message': data['message'] ?? data['error'] ?? 'Error al descartar alerta',
         };
       }
     } catch (e) {
@@ -337,19 +284,9 @@ class AlertsService {
     required String message,
   }) async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/alerts/reminder');
-
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'title': title,
-          'message': message,
-        }),
+      final response = await ApiClient.post(
+        '/api/alerts/reminder',
+        body: {'title': title, 'message': message},
       );
 
       final data = jsonDecode(response.body);
@@ -358,12 +295,12 @@ class AlertsService {
         return {
           'success': true,
           'alert': data['alert'],
-          'message': data['message'] ?? 'Recordatorio creado exitosamente',
+          'message': data['message'] ?? data['error'] ?? 'Recordatorio creado exitosamente',
         };
       } else {
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al crear recordatorio',
+          'message': data['message'] ?? data['error'] ?? 'Error al crear recordatorio',
         };
       }
     } catch (e) {
@@ -380,7 +317,7 @@ class AlertsService {
       case 'critico':
         return const Color(0xFFC72331); // Rojo crítico
       case 'advertencia':
-        return const Color(0xFFFBC318); // Amarillo advertencia
+        return AppTheme.warningColor; // Amarillo accesible
       case 'info':
         return const Color(0xFF0073E6); // Azul info
       default:
@@ -426,19 +363,9 @@ class AlertsService {
   /// - message: String (en caso de error)
   static Future<Map<String, dynamic>> getMyPatientsAlerts() async {
     try {
-      final token = await AuthService.getToken();
-      final url = Uri.parse('$_baseUrl/api/alerts/my-patients');
+      AppLogger.debug('AlertsService: GET /api/alerts/my-patients');
 
-      AppLogger.debug('AlertsService: GET $_baseUrl/api/alerts/my-patients');
-      AppLogger.debug('AlertsService: Token presente: ${token != null}');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await ApiClient.get('/api/alerts/my-patients');
 
       AppLogger.debug('AlertsService: Status code: ${response.statusCode}');
 
@@ -456,7 +383,7 @@ class AlertsService {
         final data = jsonDecode(response.body);
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener alertas de pacientes',
+          'message': data['message'] ?? data['error'] ?? 'Error al obtener alertas de pacientes',
           'alerts': [],
         };
       }
