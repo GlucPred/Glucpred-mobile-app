@@ -89,6 +89,17 @@ class _GlucoseChartPainter extends CustomPainter {
     paint.color = const Color(0xFFFFB6C1); // Rosa claro
     canvas.drawRect(criticalRect, paint);
 
+    // Líneas de referencia horizontales (grid)
+    final gridPaint = Paint()
+      ..color = const Color(0xFF6C7C93).withValues(alpha: 0.25)
+      ..strokeWidth = 0.8
+      ..style = PaintingStyle.stroke;
+
+    for (final val in [50.0, 100.0, 150.0]) {
+      final gy = chartTop + chartHeight * (1 - (val / 200));
+      canvas.drawLine(Offset(chartLeft, gy), Offset(chartLeft + chartWidth, gy), gridPaint);
+    }
+
     // Función para convertir mg/dL a posición Y (escala 0-200)
     double mgdlToY(double mgdl) {
       return chartTop + chartHeight * (1 - (mgdl / 200));
@@ -96,30 +107,37 @@ class _GlucoseChartPainter extends CustomPainter {
 
     // Crear puntos del gráfico
     final points = <Offset>[];
-    final pointSpacing = chartWidth / (data.length - 1);
-    
-    for (int i = 0; i < data.length; i++) {
-      final x = chartLeft + (pointSpacing * i);
-      final y = mgdlToY(data[i].value);
+
+    if (data.length == 1) {
+      // Un solo punto: centrar horizontalmente
+      final x = chartLeft + chartWidth / 2;
+      final y = mgdlToY(data[0].value);
       points.add(Offset(x, y));
+    } else {
+      final pointSpacing = chartWidth / (data.length - 1);
+      for (int i = 0; i < data.length; i++) {
+        final x = chartLeft + (pointSpacing * i);
+        final y = mgdlToY(data[i].value);
+        points.add(Offset(x, y));
+      }
     }
 
-    // Dibujar línea principal
-    final linePaint = Paint()
-      ..color = const Color(0xFF0073E6)
-      ..strokeWidth = 3.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    // Dibujar línea principal (solo si hay 2+ puntos)
+    if (points.length >= 2) {
+      final linePaint = Paint()
+        ..color = const Color(0xFF0073E6)
+        ..strokeWidth = 3.0
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
 
-    final path = Path();
-    if (points.isNotEmpty) {
+      final path = Path();
       path.moveTo(points.first.dx, points.first.dy);
       for (int i = 1; i < points.length; i++) {
         path.lineTo(points[i].dx, points[i].dy);
       }
+      canvas.drawPath(path, linePaint);
     }
-    canvas.drawPath(path, linePaint);
 
     // Dibujar puntos
     final pointPaint = Paint()
@@ -132,10 +150,31 @@ class _GlucoseChartPainter extends CustomPainter {
       ..strokeWidth = 2.5;
 
     for (var point in points) {
-      // Borde blanco primero
       canvas.drawCircle(point, 6, whiteBorderPaint);
-      // Punto azul encima
       canvas.drawCircle(point, 4.5, pointPaint);
+    }
+
+    // Etiqueta de valor sobre el punto (para 1-3 puntos)
+    if (data.length <= 3) {
+      final valuePainter = TextPainter(
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
+      );
+      for (int i = 0; i < points.length; i++) {
+        valuePainter.text = TextSpan(
+          text: '${data[i].value.round()} mg/dl',
+          style: const TextStyle(
+            color: Color(0xFF0073E6),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        );
+        valuePainter.layout();
+        valuePainter.paint(
+          canvas,
+          Offset(points[i].dx - valuePainter.width / 2, points[i].dy - 20),
+        );
+      }
     }
 
     // Etiquetas del eje Y (mg/dL)
@@ -181,6 +220,43 @@ class _GlucoseChartPainter extends CustomPainter {
     textPainter.layout();
     textPainter.paint(canvas, Offset(-textPainter.width / 2, 0));
     canvas.restore();
+
+    // Etiquetas del eje X (hora de cada punto)
+    if (data.length <= 12) {
+      for (int i = 0; i < points.length; i++) {
+        textPainter.text = TextSpan(
+          text: data[i].time,
+          style: const TextStyle(
+            color: Color(0xFF6C7C93),
+            fontSize: 9,
+            fontWeight: FontWeight.w500,
+          ),
+        );
+        textPainter.layout();
+        textPainter.paint(
+          canvas,
+          Offset(points[i].dx - textPainter.width / 2, chartTop + chartHeight + 6),
+        );
+      }
+    } else {
+      // Demasiados puntos: mostrar solo primer, medio y último
+      final indices = [0, data.length ~/ 2, data.length - 1];
+      for (final i in indices) {
+        textPainter.text = TextSpan(
+          text: data[i].time,
+          style: const TextStyle(
+            color: Color(0xFF6C7C93),
+            fontSize: 9,
+            fontWeight: FontWeight.w500,
+          ),
+        );
+        textPainter.layout();
+        textPainter.paint(
+          canvas,
+          Offset(points[i].dx - textPainter.width / 2, chartTop + chartHeight + 6),
+        );
+      }
+    }
   }
 
   @override
