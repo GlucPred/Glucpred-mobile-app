@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 
 class AlertRangesScreen extends StatefulWidget {
   const AlertRangesScreen({super.key});
@@ -31,8 +32,9 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: isDark ? AppTheme.darkBackgroundColor : const Color(0xFFF9FAFB),
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -65,9 +67,10 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
               // Card con todos los campos
               Card(
                 elevation: 0,
+                color: isDark ? AppTheme.darkCardColor : Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Color(0xFFE0E6EB), width: 1),
+                  side: BorderSide(color: isDark ? AppTheme.darkBorderColor : const Color(0xFFE0E6EB), width: 1),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
@@ -78,6 +81,7 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
                         label: 'Valor mínimo (mg/dL)',
                         description: 'Límite inferior para hipoglucemia.',
                         controller: _minValueController,
+                        isDark: isDark,
                       ),
                       const SizedBox(height: 20),
                       
@@ -85,6 +89,7 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
                         label: 'Valor máximo (mg/dL)',
                         description: 'Límite superior para hiperglucemia.',
                         controller: _maxValueController,
+                        isDark: isDark,
                       ),
                       const SizedBox(height: 20),
                       
@@ -92,6 +97,7 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
                         label: 'Rango de precaución (mg/dL)',
                         description: 'Zona intermedia donde el paciente debe estar atento.',
                         controller: _precautionRangeController,
+                        isDark: isDark,
                       ),
                       const SizedBox(height: 20),
                       
@@ -99,6 +105,7 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
                         label: 'Notificar si supera nivel crítico (mg/dL)',
                         description: 'Nivel crítico que genera alerta roja.',
                         controller: _highCriticalController,
+                        isDark: isDark,
                       ),
                       const SizedBox(height: 20),
                       
@@ -106,6 +113,7 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
                         label: 'Notificar si baja nivel crítico (mg/dL)',
                         description: 'Nivel crítico que genera alerta azul.',
                         controller: _lowCriticalController,
+                        isDark: isDark,
                       ),
                       const SizedBox(height: 20),
                       
@@ -113,6 +121,7 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
                         label: 'Duración promedio de tendencia (horas)',
                         description: 'Intervalo que usa la app para evaluar tendencias.',
                         controller: _trendDurationController,
+                        isDark: isDark,
                       ),
                       const SizedBox(height: 24),
                       
@@ -120,12 +129,12 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Activar alertas automáticas',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF000000),
+                              color: isDark ? Colors.white : const Color(0xFF000000),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -205,24 +214,25 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
     required String label,
     required String description,
     required TextEditingController controller,
+    required bool isDark,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF000000),
+            color: isDark ? Colors.white : const Color(0xFF000000),
           ),
         ),
         const SizedBox(height: 8),
         Text(
           description,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
-            color: Color(0xFF6C7C93),
+            color: isDark ? const Color(0xFFB3C3D3) : const Color(0xFF6C7C93),
             height: 1.4,
           ),
         ),
@@ -230,18 +240,18 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
         Container(
           height: 48,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? AppTheme.darkCardColor : Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE0E6EB), width: 1),
+            border: Border.all(color: isDark ? AppTheme.darkBorderColor : const Color(0xFFE0E6EB), width: 1),
           ),
           child: Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: controller,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
-                    color: Color(0xFF000000),
+                    color: isDark ? Colors.white : const Color(0xFF000000),
                     fontWeight: FontWeight.w500,
                   ),
                   textAlign: TextAlign.center,
@@ -254,9 +264,9 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
               Container(
                 width: 40,
                 height: 48,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   border: Border(
-                    left: BorderSide(color: Color(0xFFE0E6EB), width: 1),
+                    left: BorderSide(color: isDark ? AppTheme.darkBorderColor : const Color(0xFFE0E6EB), width: 1),
                   ),
                 ),
                 child: IconButton(

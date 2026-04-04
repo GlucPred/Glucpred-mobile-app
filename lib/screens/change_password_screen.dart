@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -13,6 +14,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -34,6 +36,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         return;
       }
 
+      setState(() { _isSubmitting = true; });
+
       // Simular cambio de contraseña exitoso
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -41,14 +45,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           backgroundColor: Color(0xFF337536),
         ),
       );
+
+      setState(() { _isSubmitting = false; });
       Navigator.pop(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: isDark ? AppTheme.darkBackgroundColor : const Color(0xFFF9FAFB),
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -68,6 +75,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             padding: const EdgeInsets.all(24.0),
             child: Card(
               elevation: 2,
+              color: isDark ? AppTheme.darkCardColor : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -81,13 +89,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Título
-                      const Text(
+                      Text(
                         'Contraseña',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF000000),
+                          color: isDark ? Colors.white : const Color(0xFF000000),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -105,12 +113,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       const SizedBox(height: 32),
                       
                       // Campo: Contraseña nueva
-                      const Text(
+                      Text(
                         'Contraseña nueva',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF000000),
+                          color: isDark ? Colors.white : const Color(0xFF000000),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -124,18 +132,18 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             fontSize: 14,
                           ),
                           filled: true,
-                          fillColor: const Color(0xFFF9FAFB),
+                          fillColor: isDark ? AppTheme.darkCardColor : const Color(0xFFF9FAFB),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE0E6EB),
+                            borderSide: BorderSide(
+                              color: isDark ? AppTheme.darkBorderColor : const Color(0xFFE0E6EB),
                               width: 1,
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE0E6EB),
+                            borderSide: BorderSide(
+                              color: isDark ? AppTheme.darkBorderColor : const Color(0xFFE0E6EB),
                               width: 1,
                             ),
                           ),
@@ -178,12 +186,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       const SizedBox(height: 20),
                       
                       // Campo: Confirmar contraseña nueva
-                      const Text(
+                      Text(
                         'Confirmar contraseña nueva',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF000000),
+                          color: isDark ? Colors.white : const Color(0xFF000000),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -197,18 +205,18 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             fontSize: 14,
                           ),
                           filled: true,
-                          fillColor: const Color(0xFFF9FAFB),
+                          fillColor: isDark ? AppTheme.darkCardColor : const Color(0xFFF9FAFB),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE0E6EB),
+                            borderSide: BorderSide(
+                              color: isDark ? AppTheme.darkBorderColor : const Color(0xFFE0E6EB),
                               width: 1,
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE0E6EB),
+                            borderSide: BorderSide(
+                              color: isDark ? AppTheme.darkBorderColor : const Color(0xFFE0E6EB),
                               width: 1,
                             ),
                           ),
@@ -251,7 +259,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       SizedBox(
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _changePassword,
+                          onPressed: _isSubmitting ? null : _changePassword,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0073E6),
                             foregroundColor: Colors.white,
@@ -259,14 +267,24 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
+                            disabledBackgroundColor: const Color(0xFF0073E6).withValues(alpha: 0.6),
                           ),
-                          child: const Text(
-                            'Cambiar contraseña',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Text(
+                                  'Cambiar contraseña',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
