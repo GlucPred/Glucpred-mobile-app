@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import 'patient_detail_screen.dart';
 import 'add_patient_screen.dart';
 import '../services/doctor_patient_service.dart';
@@ -351,8 +352,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         statusBgColor = const Color(0xFF337536).withOpacity(0.1);
         break;
       case 'Moderada':
-        statusColor = const Color(0xFFFBC318);
-        statusBgColor = const Color(0xFFFBC318).withOpacity(0.1);
+        statusColor = isDark ? AppTheme.warningColorBright : AppTheme.warningColor;
+        statusBgColor = (isDark ? AppTheme.warningColorBright : AppTheme.warningColor).withOpacity(0.1);
         break;
       case 'Crítica':
         statusColor = const Color(0xFFC72331);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../config/theme.dart';
 import '../services/alerts_service.dart';
 import '../utils/logger.dart';
 
@@ -256,7 +257,7 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> with AutomaticK
         statusText = 'Crítico';
         break;
       case 'advertencia':
-        statusColor = const Color(0xFFFBC318);
+        statusColor = isDark ? AppTheme.warningColorBright : AppTheme.warningColor;
         statusText = 'Advertencia';
         break;
       default:

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import '../services/records_service.dart';
 import '../services/analysis_service.dart';
 import '../services/health_connect_service.dart';
@@ -339,6 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required String recommendation,
     required Map<String, dynamic> probabilities,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     Color alertColor;
     IconData alertIcon;
 
@@ -348,7 +350,7 @@ class _HomeScreenState extends State<HomeScreen> {
         alertIcon = Icons.warning_amber_rounded;
         break;
       case 'Medio':
-        alertColor = const Color(0xFFFBC318);
+        alertColor = isDark ? AppTheme.warningColorBright : AppTheme.warningColor;
         alertIcon = Icons.info_outline;
         break;
       default:

@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
+import '../config/theme.dart';
 import '../services/auth_service.dart';
 import '../services/records_service.dart';
 import '../utils/logger.dart';
@@ -272,7 +273,7 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> with Automati
                 Expanded(
                   child: _buildLegendItem(
                     'Precaución (100 - 140)',
-                    const Color(0xFFFBC318),
+                    isDark ? AppTheme.warningColorBright : AppTheme.warningColor,
                     isDark,
                   ),
                 ),
@@ -308,7 +309,7 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> with Automati
                     title: 'Promedio general',
                     value: _statistics['average'].toStringAsFixed(0),
                     unit: 'mg/dL',
-                    color: const Color(0xFFFBC318),
+                    color: isDark ? AppTheme.warningColorBright : AppTheme.warningColor,
                     isDark: isDark,
                   ),
                 ),
@@ -695,7 +696,7 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> with Automati
                         'Promedio general',
                         '118',
                         'mg/dL',
-                        PdfColor.fromHex('#FBC318'),
+                        PdfColor.fromHex('#B8860B'),
                       ),
                     ),
                     pw.SizedBox(width: 12),
@@ -810,7 +811,7 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> with Automati
                       ],
                     ),
                     pw.TableRow(
-                      decoration: pw.BoxDecoration(color: PdfColor.fromHex('#FBC318')),
+                      decoration: pw.BoxDecoration(color: PdfColor.fromHex('#B8860B')),
                       children: [
                         _buildPdfTableCell('Precaución', isHeader: true),
                         _buildPdfTableCell('100 - 140 mg/dl', isHeader: true),
@@ -946,7 +947,7 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> with Automati
       case 'Normal':
         return PdfColor.fromHex('#337536');
       case 'Precaución':
-        return PdfColor.fromHex('#FBC318');
+        return PdfColor.fromHex('#B8860B');
       case 'Crítico':
         return PdfColor.fromHex('#C72331');
       default:

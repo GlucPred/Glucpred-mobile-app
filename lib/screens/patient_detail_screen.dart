@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import 'medical_observations_screen.dart';
 import '../services/doctor_patient_service.dart';
 import '../services/records_service.dart';
@@ -454,7 +455,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     title: '% en rango',
                     value: '${_normalPercentage.toStringAsFixed(0)}%',
                     unit: 'objetivo',
-                    color: const Color(0xFFFBC318),
+                    color: isDark ? AppTheme.warningColorBright : AppTheme.warningColor,
                     isDark: isDark,
                   ),
                 ),
