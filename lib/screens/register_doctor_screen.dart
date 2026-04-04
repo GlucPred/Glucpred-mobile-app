@@ -149,12 +149,12 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Título principal
-            const Text(
+            Text(
               'Registro',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
-                color: Colors.black87,
+                color: isDark ? Colors.white : Colors.black87,
               ),
             ),
             const SizedBox(height: 40),
