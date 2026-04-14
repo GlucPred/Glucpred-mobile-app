@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:glucpred/core/config/theme.dart';
+import 'package:glucpred/core/network/api_client.dart';
 import 'package:glucpred/features/auth/presentation/screens/splash_screen.dart';
+import 'package:glucpred/features/auth/presentation/screens/login_selection_screen.dart';
 import 'package:glucpred/features/auth/data/repositories/auth_repository.dart';
 import 'package:glucpred/features/records/data/repositories/records_repository.dart';
 import 'package:glucpred/features/alerts/data/repositories/alerts_repository.dart';
@@ -16,8 +18,20 @@ import 'package:glucpred/features/doctor/presentation/viewmodels/doctor_home_vie
 import 'package:glucpred/features/doctor/presentation/viewmodels/doctor_patient_view_model.dart';
 import 'package:glucpred/features/settings/presentation/viewmodels/settings_view_model.dart';
 
+/// Global navigator key used for imperative navigation (e.g. 401 redirects).
+final navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Redirect to login whenever the API returns 401 (token expired/invalid).
+  ApiClient.onUnauthorized = () {
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginSelectionScreen()),
+      (_) => false,
+    );
+  };
+
   runApp(const GlucPredApp());
 }
 
@@ -49,6 +63,7 @@ class GlucPredApp extends StatelessWidget {
       child: Consumer<SettingsViewModel>(
         builder: (context, settings, _) {
           return MaterialApp(
+            navigatorKey: navigatorKey,
             title: 'GlucPred - Monitoreo de Glucosa',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,

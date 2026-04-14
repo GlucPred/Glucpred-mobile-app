@@ -41,13 +41,15 @@ class AuthRepository {
       AuthService.updateProfile(data);
 
   Future<Map<String, dynamic>> changePassword(
-      String currentPassword, String newPassword) async {
-    return {'success': false, 'message': 'No implementado'};
-  }
+          String currentPassword, String newPassword) =>
+      AuthService.changePassword(newPassword: newPassword);
 
-  Future<Map<String, dynamic>> forgotPassword(String email) async {
-    return {'success': false, 'message': 'No implementado'};
-  }
+  Future<Map<String, dynamic>> forgotPassword(String usernameOrEmail,
+          {String newPassword = ''}) =>
+      AuthService.forgotPassword(
+        usernameOrEmail: usernameOrEmail,
+        newPassword: newPassword,
+      );
 
   Future<Map<String, dynamic>> completePatientProfile(
           Map<String, dynamic> data) =>

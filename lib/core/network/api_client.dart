@@ -9,7 +9,17 @@ class ApiClient {
   static const Duration _timeout = Duration(seconds: 30);
   static const int _maxRetries = 2;
 
+  /// Called when the server returns 401 (token expired / invalid).
+  /// Register this from main.dart to navigate to the login screen.
+  static void Function()? onUnauthorized;
+
   static String get baseUrl => EnvConfig.apiBaseUrl;
+
+  /// Extracts a human-readable error string from a decoded JSON map.
+  /// Backends in this project return either `message` or `error`.
+  static String parseMessage(Map<String, dynamic> data, [String fallback = 'Error desconocido']) {
+    return (data['message'] ?? data['error'] ?? fallback).toString();
+  }
 
   static Future<Map<String, String>> _getHeaders({bool auth = true}) async {
     final headers = {'Content-Type': 'application/json'};
@@ -32,17 +42,14 @@ class ApiClient {
         final response = await request().timeout(_timeout);
         if (response.statusCode == 401) {
           await _secureStorage.delete(key: 'access_token');
+          onUnauthorized?.call();
           return response;
         }
         return response;
       } on TimeoutException {
-        if (attempts > _maxRetries) {
-          rethrow;
-        }
+        if (attempts > _maxRetries) rethrow;
       } on Exception {
-        if (attempts > _maxRetries) {
-          rethrow;
-        }
+        if (attempts > _maxRetries) rethrow;
       }
       await Future.delayed(Duration(seconds: attempts));
     }

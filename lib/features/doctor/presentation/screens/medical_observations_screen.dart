@@ -342,6 +342,16 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
                 const Spacer(),
                 IconButton(
                   icon: Icon(
+                    Icons.edit_outlined,
+                    color: isDark ? Colors.blue[300] : const Color(0xFF0073E6),
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    _showEditObservationDialog(observationId, observationText);
+                  },
+                ),
+                IconButton(
+                  icon: Icon(
                     Icons.delete_outline,
                     color: isDark ? Colors.red[300] : Colors.red,
                     size: 20,
@@ -363,6 +373,60 @@ class _MedicalObservationsScreenState extends State<MedicalObservationsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showEditObservationDialog(int observationId, String currentText) {
+    final textController = TextEditingController(text: currentText);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Editar observación'),
+          content: TextField(
+            controller: textController,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              hintText: 'Escribe la observación...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final text = textController.text.trim();
+                if (text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('La observación no puede estar vacía')),
+                  );
+                  return;
+                }
+                Navigator.pop(context);
+                final result = await DoctorPatientService.updateObservation(observationId, text);
+                if (result['success']) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Observación actualizada')),
+                    );
+                    _loadObservations();
+                  }
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(result['message'] ?? 'Error al actualizar'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
     );
   }
 

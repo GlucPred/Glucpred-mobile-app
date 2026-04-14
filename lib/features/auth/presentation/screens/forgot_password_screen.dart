@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:glucpred/core/config/theme.dart';
+import 'package:glucpred/features/auth/data/services/auth_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -14,6 +15,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -23,76 +25,43 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  void _handleConfirm() {
+  Future<void> _handleConfirm() async {
     final username = _usernameController.text.trim();
     final newPassword = _newPasswordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    // Validaciones
     if (username.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor ingrese su usuario o correo electrónico'),
-          backgroundColor: AppTheme.dangerColor,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor ingrese su usuario o correo electrónico'), backgroundColor: AppTheme.dangerColor));
       return;
     }
-
     if (newPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor ingrese su nueva contraseña'),
-          backgroundColor: AppTheme.dangerColor,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor ingrese su nueva contraseña'), backgroundColor: AppTheme.dangerColor));
       return;
     }
-
     if (confirmPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor confirme su contraseña'),
-          backgroundColor: AppTheme.dangerColor,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor confirme su contraseña'), backgroundColor: AppTheme.dangerColor));
       return;
     }
-
     if (newPassword != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Las contraseñas no coinciden'),
-          backgroundColor: AppTheme.dangerColor,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Las contraseñas no coinciden'), backgroundColor: AppTheme.dangerColor));
       return;
     }
-
     if (newPassword.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La contraseña debe tener al menos 6 caracteres'),
-          backgroundColor: AppTheme.dangerColor,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La contraseña debe tener al menos 6 caracteres'), backgroundColor: AppTheme.dangerColor));
       return;
     }
 
-    // Aquí iría la lógica de restablecimiento de contraseña con el backend
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Contraseña restablecida exitosamente'),
-        backgroundColor: AppTheme.successColor,
-      ),
-    );
+    setState(() => _isLoading = true);
+    final result = await AuthService.forgotPassword(usernameOrEmail: username, newPassword: newPassword);
+    if (!mounted) return;
+    setState(() => _isLoading = false);
 
-    // Volver al inicio después de 1 segundo
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    });
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contraseña restablecida exitosamente'), backgroundColor: AppTheme.successColor));
+      Future.delayed(const Duration(seconds: 1), () { if (mounted) Navigator.pop(context); });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'] ?? 'Error al restablecer contraseña'), backgroundColor: AppTheme.dangerColor));
+    }
   }
 
   @override
@@ -299,7 +268,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _handleConfirm,
+                  onPressed: _isLoading ? null : _handleConfirm,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryColor,
                     shape: RoundedRectangleBorder(
@@ -307,14 +276,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Confirmar',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
+                      : const Text(
+                          'Confirmar',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 16),

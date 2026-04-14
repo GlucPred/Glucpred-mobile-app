@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:glucpred/core/config/theme.dart';
+import 'package:glucpred/features/auth/data/services/auth_service.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -23,9 +24,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     super.dispose();
   }
 
-  void _changePassword() {
+  void _changePassword() async {
     if (_formKey.currentState!.validate()) {
-      // Validar que las contraseñas coincidan
       if (_newPasswordController.text != _confirmPasswordController.text) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -35,19 +35,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         );
         return;
       }
-
       setState(() { _isSubmitting = true; });
-
-      // Simular cambio de contraseña exitoso
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Contraseña actualizada correctamente'),
-          backgroundColor: Color(0xFF337536),
-        ),
-      );
-
+      final result = await AuthService.changePassword(newPassword: _newPasswordController.text);
+      if (!mounted) return;
       setState(() { _isSubmitting = false; });
-      Navigator.pop(context);
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contraseña actualizada correctamente'), backgroundColor: Color(0xFF337536)));
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'] ?? 'Error al cambiar contraseña'), backgroundColor: const Color(0xFFC72331)));
+      }
     }
   }
 

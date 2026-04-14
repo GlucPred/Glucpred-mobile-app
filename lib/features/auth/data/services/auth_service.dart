@@ -288,6 +288,58 @@ class AuthService {
     }
   }
 
+  // Restablecer contraseña (flujo sin verificación de correo)
+  static Future<Map<String, dynamic>> forgotPassword({
+    required String usernameOrEmail,
+    required String newPassword,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl/api/auth/forgot-password');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username_or_email': usernameOrEmail,
+          'new_password': newPassword,
+        }),
+      ).timeout(const Duration(seconds: 30));
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message'] ?? 'Contraseña restablecida exitosamente'};
+      } else {
+        return {'success': false, 'message': data['error'] ?? data['message'] ?? 'Error al restablecer contraseña'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: ${e.toString()}'};
+    }
+  }
+
+  // Cambiar contraseña del usuario autenticado
+  static Future<Map<String, dynamic>> changePassword({
+    required String newPassword,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$_baseUrl/api/auth/change-password');
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'new_password': newPassword}),
+      ).timeout(const Duration(seconds: 30));
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message'] ?? 'Contraseña actualizada correctamente'};
+      } else {
+        return {'success': false, 'message': data['error'] ?? data['message'] ?? 'Error al cambiar contraseña'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: ${e.toString()}'};
+    }
+  }
+
   // Actualizar perfil del usuario (PUT /api/profile/paciente o /api/profile/medico)
   // Solo envía los campos que se modificaron
   static Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body) async {

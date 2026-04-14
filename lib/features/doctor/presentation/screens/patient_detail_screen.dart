@@ -227,6 +227,48 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     }
   }
 
+  Future<void> _deassignPatient() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Desasignar paciente'),
+        content: const Text(
+          '¿Estás seguro de que deseas desasignar a este paciente? Esta acción desactivará la relación médico-paciente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC72331),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Desasignar'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    final result = await DoctorPatientService.deactivatePatient(widget.patientUserId);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Paciente desasignado correctamente')),
+      );
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Error al desasignar paciente'),
+          backgroundColor: const Color(0xFFC72331),
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _observationController.dispose();
@@ -654,6 +696,31 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                         size: 20,
                       ),
                     ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Botón desasignar paciente
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _deassignPatient,
+                icon: const Icon(Icons.person_remove_outlined, color: Color(0xFFC72331)),
+                label: const Text(
+                  'Desasignar paciente',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFC72331),
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: Color(0xFFC72331)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
                   ),
                 ),
               ),
