@@ -107,11 +107,6 @@ class _GlucoseChartPainter extends CustomPainter {
       canvas.drawLine(Offset(chartLeft, gy), Offset(chartLeft + chartWidth, gy), gridPaint);
     }
 
-    // Escala dinámica: máximo = max(200, maxValor + 20%) redondeado a 50
-    final maxDataValue = data.map((p) => p.value).reduce((a, b) => a > b ? a : b);
-    final rawMax = maxDataValue > 200 ? maxDataValue * 1.15 : 200.0;
-    final scaleMax = (rawMax / 50).ceil() * 50.0;
-
     // Función para convertir mg/dL a posición Y (escala dinámica)
     double mgdlToY(double mgdl) {
       return chartTop + chartHeight * (1 - (mgdl / scaleMax));
