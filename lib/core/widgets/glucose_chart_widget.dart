@@ -89,20 +89,32 @@ class _GlucoseChartPainter extends CustomPainter {
     paint.color = const Color(0xFFFFB6C1); // Rosa claro
     canvas.drawRect(criticalRect, paint);
 
-    // Líneas de referencia horizontales (grid)
+    // Escala dinámica: máximo = max(200, maxValor + 20%) redondeado a 50
+    final maxDataValue = data.map((p) => p.value).reduce((a, b) => a > b ? a : b);
+    final rawMax = maxDataValue > 200 ? maxDataValue * 1.15 : 200.0;
+    final scaleMax = (rawMax / 50).ceil() * 50.0;
+
+    // Líneas de referencia horizontales (grid) — dinámicas
     final gridPaint = Paint()
       ..color = const Color(0xFF6C7C93).withValues(alpha: 0.25)
       ..strokeWidth = 0.8
       ..style = PaintingStyle.stroke;
 
-    for (final val in [50.0, 100.0, 150.0]) {
-      final gy = chartTop + chartHeight * (1 - (val / 200));
+    final gridStep = scaleMax / 4;
+    for (int g = 1; g <= 3; g++) {
+      final val = gridStep * g;
+      final gy = chartTop + chartHeight * (1 - (val / scaleMax));
       canvas.drawLine(Offset(chartLeft, gy), Offset(chartLeft + chartWidth, gy), gridPaint);
     }
 
-    // Función para convertir mg/dL a posición Y (escala 0-200)
+    // Escala dinámica: máximo = max(200, maxValor + 20%) redondeado a 50
+    final maxDataValue = data.map((p) => p.value).reduce((a, b) => a > b ? a : b);
+    final rawMax = maxDataValue > 200 ? maxDataValue * 1.15 : 200.0;
+    final scaleMax = (rawMax / 50).ceil() * 50.0;
+
+    // Función para convertir mg/dL a posición Y (escala dinámica)
     double mgdlToY(double mgdl) {
-      return chartTop + chartHeight * (1 - (mgdl / 200));
+      return chartTop + chartHeight * (1 - (mgdl / scaleMax));
     }
 
     // Crear puntos del gráfico
@@ -177,30 +189,25 @@ class _GlucoseChartPainter extends CustomPainter {
       }
     }
 
-    // Etiquetas del eje Y (mg/dL)
+    // Etiquetas del eje Y dinámicas
     final textPainter = TextPainter(
       textDirection: TextDirection.ltr,
       textAlign: TextAlign.center,
     );
-    final yLabels = ['200', '150', '100', '50', '0'];
-    final yValues = [0.0, 0.25, 0.5, 0.75, 1.0]; // Posiciones relativas
-    
-    for (int i = 0; i < yLabels.length; i++) {
+    final yLabelCount = 5;
+    for (int i = 0; i < yLabelCount; i++) {
+      final val = scaleMax * (1 - i / (yLabelCount - 1));
+      final yPos = chartTop + chartHeight * (i / (yLabelCount - 1)) - 5;
       textPainter.text = TextSpan(
-        text: yLabels[i],
+        text: val.round().toString(),
         style: const TextStyle(
-          color: Color(0xFF6C7C93), 
+          color: Color(0xFF6C7C93),
           fontSize: 10,
           fontWeight: FontWeight.w500,
         ),
       );
       textPainter.layout();
-      final yPos = chartTop + (chartHeight * yValues[i]) - (textPainter.height / 2);
-      // Posicionar números más a la derecha para dejar espacio al texto rotado
-      textPainter.paint(
-        canvas,
-        Offset(22, yPos),
-      );
+      textPainter.paint(canvas, Offset(22, yPos));
     }
     
     // Etiqueta "mg/dl" en el eje Y (rotada, a la izquierda de los números)
