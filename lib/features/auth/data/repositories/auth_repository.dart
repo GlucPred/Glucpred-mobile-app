@@ -46,10 +46,7 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> forgotPassword(String usernameOrEmail,
           {String newPassword = ''}) =>
-      AuthService.forgotPassword(
-        usernameOrEmail: usernameOrEmail,
-        newPassword: newPassword,
-      );
+      AuthService.sendPasswordResetCode(usernameOrEmail: usernameOrEmail);
 
   Future<Map<String, dynamic>> completePatientProfile(
           Map<String, dynamic> data) =>

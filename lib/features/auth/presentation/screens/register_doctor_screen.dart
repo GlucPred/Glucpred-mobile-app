@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:glucpred/features/auth/presentation/viewmodels/auth_view_model.dart';
-import 'package:glucpred/core/widgets/doctor_main_navigation.dart';
-import 'package:glucpred/features/doctor/presentation/screens/complete_doctor_profile_screen.dart';
+import 'package:glucpred/features/auth/data/services/auth_service.dart';
+import 'package:glucpred/features/auth/presentation/screens/verify_code_screen.dart';
 
 class RegisterDoctorScreen extends StatefulWidget {
   const RegisterDoctorScreen({super.key});
@@ -18,9 +16,10 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
   final TextEditingController _celularController = TextEditingController();
   final TextEditingController _contrasenaController = TextEditingController();
   final TextEditingController _confirmarContrasenaController = TextEditingController();
-  
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -34,7 +33,6 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
   }
 
   Future<void> _handleRegister() async {
-    // Validar campos
     if (_nombreCompletoController.text.isEmpty ||
         _usernameController.text.isEmpty ||
         _emailController.text.isEmpty ||
@@ -50,7 +48,6 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
       return;
     }
 
-    // Validar que las contraseñas coincidan
     if (_contrasenaController.text != _confirmarContrasenaController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -61,62 +58,45 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
       return;
     }
 
-    setState(() {});
+    setState(() => _isLoading = true);
 
-    try {
-      final vm = context.read<AuthViewModel>();
-      final success = await vm.registerDoctor({
-        'nombre_completo': _nombreCompletoController.text,
-        'username': _usernameController.text,
-        'email': _emailController.text,
-        'numero_celular': _celularController.text,
-        'password': _contrasenaController.text,
-        'confirmar_password': _confirmarContrasenaController.text,
-      });
+    final registrationData = {
+      'nombre_completo': _nombreCompletoController.text.trim(),
+      'username': _usernameController.text.trim(),
+      'email': _emailController.text.trim(),
+      'numero_celular': _celularController.text.trim(),
+      'password': _contrasenaController.text,
+      'confirmar_password': _confirmarContrasenaController.text,
+    };
 
-      setState(() {});
+    final result = await AuthService.initiateRegistration(
+      nombreCompleto: registrationData['nombre_completo']!,
+      username: registrationData['username']!,
+      email: registrationData['email']!,
+      numeroCelular: registrationData['numero_celular']!,
+      password: registrationData['password']!,
+      confirmarPassword: registrationData['confirmar_password']!,
+      rol: 'Medico',
+    );
 
-      if (!mounted) return;
+    if (!mounted) return;
+    setState(() => _isLoading = false);
 
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Cuenta de médico creada exitosamente!'),
-            backgroundColor: Color(0xFF337536),
+    if (result['success'] == true) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerifyCodeScreen(
+            email: result['email'] ?? registrationData['email']!,
+            rol: 'Medico',
+            registrationData: registrationData,
           ),
-        );
-
-        final userInfo = vm.userInfo ?? {};
-        final bool esPrimerInicio = userInfo['es_primer_inicio'] ?? false;
-
-        Widget destination;
-        if (esPrimerInicio) {
-          destination = const CompleteDoctorProfileScreen();
-        } else {
-          destination = const DoctorMainNavigation();
-        }
-
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => destination),
-          (route) => false,
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(vm.errorMessage ?? 'Error al crear la cuenta'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() {});
-
-      if (!mounted) return;
-
+        ),
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error inesperado: ${e.toString()}'),
+          content: Text(result['message'] ?? 'Error al crear la cuenta'),
           backgroundColor: Colors.red,
         ),
       );
@@ -216,44 +196,39 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
             ),
             const SizedBox(height: 40),
 
-            Consumer<AuthViewModel>(
-              builder: (context, vm, _) {
-                final isLoading = vm.isLoading;
-                return SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: isLoading ? null : _handleRegister,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0073E6),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 0,
-                      disabledBackgroundColor:
-                          const Color(0xFF0073E6).withOpacity(0.6),
-                    ),
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Crear cuenta',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _handleRegister,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0073E6),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
                   ),
-                );
-              },
+                  elevation: 0,
+                  disabledBackgroundColor:
+                      const Color(0xFF0073E6).withOpacity(0.6),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Crear cuenta',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
             ),
             const SizedBox(height: 20),
 

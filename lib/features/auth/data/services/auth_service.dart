@@ -288,27 +288,123 @@ class AuthService {
     }
   }
 
-  // Restablecer contraseña (flujo sin verificación de correo)
-  static Future<Map<String, dynamic>> forgotPassword({
+  // -----------------------------------------------------------------------
+  // NEW: 2-step registration
+  // -----------------------------------------------------------------------
+
+  /// Step 1 — validate data and send 6-digit OTP to [email].
+  /// Returns { 'success': true, 'email': '...' } or { 'success': false, 'message': '...' }
+  static Future<Map<String, dynamic>> initiateRegistration({
+    required String nombreCompleto,
+    required String username,
+    required String email,
+    required String numeroCelular,
+    required String password,
+    required String confirmarPassword,
+    required String rol,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl/api/auth/register');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'nombre_completo': nombreCompleto,
+          'username': username,
+          'email': email,
+          'numero_celular': numeroCelular,
+          'password': password,
+          'confirmar_password': confirmarPassword,
+          'rol': rol,
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'email': data['email'] ?? email, 'message': data['message']};
+      }
+      return {'success': false, 'message': data['error'] ?? data['message'] ?? 'Error al enviar código'};
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: ${e.toString()}'};
+    }
+  }
+
+  /// Step 2 — verify OTP; on success saves token and user info locally.
+  /// Returns { 'success': true, 'user': {...} } or { 'success': false, 'message': '...' }
+  static Future<Map<String, dynamic>> verifyRegistration({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl/api/auth/register/verify');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'code': code}),
+      ).timeout(const Duration(seconds: 30));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 201) {
+        if (data['access_token'] != null) await _saveToken(data['access_token']);
+        if (data['user'] != null) await _saveUserInfo(data['user']);
+        return {'success': true, 'user': data['user'], 'message': data['message']};
+      }
+      return {'success': false, 'message': data['error'] ?? data['message'] ?? 'Código inválido o expirado'};
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: ${e.toString()}'};
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // NEW: 2-step password reset
+  // -----------------------------------------------------------------------
+
+  /// Step 1 — send OTP to the registered email of [usernameOrEmail].
+  /// Returns { 'success': true, 'masked_email': 'us***@...' } or error.
+  static Future<Map<String, dynamic>> sendPasswordResetCode({
     required String usernameOrEmail,
-    required String newPassword,
   }) async {
     try {
       final url = Uri.parse('$_baseUrl/api/auth/forgot-password');
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username_or_email': usernameOrEmail}),
+      ).timeout(const Duration(seconds: 30));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'masked_email': data['masked_email'] ?? '', 'message': data['message']};
+      }
+      return {'success': false, 'message': data['error'] ?? data['message'] ?? 'Error al enviar código'};
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: ${e.toString()}'};
+    }
+  }
+
+  /// Step 2 — verify OTP and set new password.
+  static Future<Map<String, dynamic>> confirmPasswordReset({
+    required String usernameOrEmail,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl/api/auth/reset-password');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username_or_email': usernameOrEmail,
+          'code': code,
           'new_password': newPassword,
         }),
       ).timeout(const Duration(seconds: 30));
+
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {'success': true, 'message': data['message'] ?? 'Contraseña restablecida exitosamente'};
-      } else {
-        return {'success': false, 'message': data['error'] ?? data['message'] ?? 'Error al restablecer contraseña'};
       }
+      return {'success': false, 'message': data['error'] ?? data['message'] ?? 'Código inválido o expirado'};
     } catch (e) {
       return {'success': false, 'message': 'Error de conexión: ${e.toString()}'};
     }
@@ -341,14 +437,11 @@ class AuthService {
   }
 
   // Actualizar perfil del usuario (PUT /api/profile/paciente o /api/profile/medico)
-  // Solo envía los campos que se modificaron
   static Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body) async {
     try {
       final token = await getToken();
       final userInfo = await getUserInfo();
       final rol = userInfo['rol']?.toString().toLowerCase() ?? 'paciente';
-      
-      // Usar endpoint específico según el rol
       final endpoint = rol == 'medico' ? '/api/profile/medico' : '/api/profile/paciente';
       final url = Uri.parse('$_baseUrl$endpoint');
 
