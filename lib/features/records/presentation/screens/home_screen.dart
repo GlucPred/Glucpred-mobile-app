@@ -197,9 +197,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     'No hay datos disponibles',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Usa "Analizar" para registrar tu primera medición',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (vm.errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        vm.errorMessage!,
+                        style: const TextStyle(fontSize: 13, color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
                   ElevatedButton.icon(
-                    onPressed: () => vm.loadData(isInitial: false),
+                    onPressed: () => vm.loadData(isInitial: true),
                     icon: const Icon(Icons.refresh),
                     label: const Text('Actualizar'),
                   ),
@@ -284,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withAlpha(51),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),

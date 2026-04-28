@@ -46,6 +46,7 @@ class HomeViewModel extends ChangeNotifier {
       {bool isInitial = false, bool silentError = false}) async {
     if (isInitial) {
       _isLoading = true;
+      _errorMessage = null;
       notifyListeners();
     }
 
@@ -119,6 +120,8 @@ class HomeViewModel extends ChangeNotifier {
       if (result['success'] == true) {
         _lastAnalysisResult = result;
         await loadData(isInitial: false);
+        // If record wasn't found after analysis (save may have failed on backend),
+        // still return the result so the prediction dialog is shown.
         notifyListeners();
         return result;
       } else {
