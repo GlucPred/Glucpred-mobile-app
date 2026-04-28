@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
 import 'package:glucpred/core/config/theme.dart';
 import 'package:glucpred/core/widgets/glucose_chart_widget.dart';
+import 'package:glucpred/core/services/glucose_range_service.dart';
 import 'package:glucpred/features/records/data/services/records_service.dart';
 import 'package:glucpred/features/auth/data/services/auth_service.dart';
 import 'package:glucpred/features/records/domain/models/trend_point.dart';
@@ -190,7 +192,14 @@ class _ChartsScreenState extends State<ChartsScreen> {
                                 const SizedBox(height: 16),
                                 Padding(
                                   padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-                                  child: GlucoseChartWidget(data: _chartData, period: _selectedTab),
+                                  child: GlucoseChartWidget(
+                                    data: _chartData,
+                                    period: _selectedTab,
+                                    rangeMin: context.watch<GlucoseRangeService>().min,
+                                    rangeMax: context.watch<GlucoseRangeService>().max,
+                                    lowCritical: context.watch<GlucoseRangeService>().lowCritical,
+                                    highCritical: context.watch<GlucoseRangeService>().highCritical,
+                                  ),
                                 ),
                                 const SizedBox(height: 20),
                                 _buildLegend(),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:glucpred/core/config/theme.dart';
+import 'package:provider/provider.dart';
+import 'package:glucpred/core/services/glucose_range_service.dart';
 import 'package:glucpred/features/records/domain/models/glucose_reading.dart';
 
 class GlucoseCard extends StatelessWidget {
@@ -10,21 +11,13 @@ class GlucoseCard extends StatelessWidget {
     required this.reading,
   });
 
-  Color _getStatusColor(bool isDark) {
-    switch (reading.status) {
-      case 'high':
-        return isDark ? AppTheme.warningColorBright : AppTheme.warningColor;
-      case 'low':
-        return const Color(0xFFC72331); // Rojo de la paleta
-      default:
-        return const Color(0xFF337536); // Verde de la paleta
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    final rangeService = context.watch<GlucoseRangeService>();
+    final color = rangeService.getColor(reading.value);
+    final label = rangeService.getZoneLabel(reading.value);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -44,7 +37,7 @@ class GlucoseCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 64,
                 fontWeight: FontWeight.bold,
-                color: _getStatusColor(isDark),
+                color: color,
               ),
             ),
             Text(
@@ -56,16 +49,13 @@ class GlucoseCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: BoxDecoration(
-                color: _getStatusColor(isDark),
+                color: color,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Text(
-                reading.statusLabel,
+                label,
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -78,3 +68,4 @@ class GlucoseCard extends StatelessWidget {
     );
   }
 }
+

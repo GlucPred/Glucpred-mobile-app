@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:glucpred/core/services/glucose_range_service.dart';
 import 'package:glucpred/features/records/presentation/viewmodels/stats_view_model.dart';
 
 class StatsScreen extends StatefulWidget {
@@ -60,7 +61,15 @@ class _StatsScreenState extends State<StatsScreen> {
 
     final totalReadings = statistics['total_readings'] ?? 0;
     final average = statistics['average'] ?? 0.0;
-    final normalPercentage = vm.normalPercentage;
+
+    // Use user-configured ranges for % calculation when we have reading values.
+    final rangeService = context.watch<GlucoseRangeService>();
+    final glucoseValues = recentReadings
+        .map((r) => (r['glucose_value'] as num?)?.toDouble() ?? 0.0)
+        .toList();
+    final normalPercentage = glucoseValues.isNotEmpty
+        ? rangeService.calculateInRangePercentage(glucoseValues)
+        : vm.normalPercentage;
 
     return Scaffold(
       appBar: AppBar(
@@ -95,6 +104,7 @@ class _StatsScreenState extends State<StatsScreen> {
                 '${normalPercentage.toStringAsFixed(0)}%',
                 Icons.check_circle,
                 Colors.green,
+                subtitle: 'Rango: ${rangeService.rangeText}',
               ),
               const SizedBox(height: 12),
               _buildStatCard(
@@ -138,8 +148,9 @@ class _StatsScreenState extends State<StatsScreen> {
     String label,
     String value,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    String? subtitle,
+  }) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -148,7 +159,7 @@ class _StatsScreenState extends State<StatsScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withAlpha(26),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 32),
@@ -173,6 +184,14 @@ class _StatsScreenState extends State<StatsScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 11,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -184,27 +203,16 @@ class _StatsScreenState extends State<StatsScreen> {
 
   Widget _buildReadingItem(BuildContext context, Map<String, dynamic> reading) {
     final glucoseValue = reading['glucose_value']?.toDouble() ?? 0.0;
-    final classification = reading['classification'] ?? 'normal';
     final measurementTime = DateTime.parse(reading['measurement_time']);
-    
-    Color statusColor;
-    switch (classification.toLowerCase()) {
-      case 'critico':
-      case 'bajo':
-        statusColor = Colors.red;
-        break;
-      case 'alto':
-        statusColor = Colors.orange;
-        break;
-      default:
-        statusColor = Colors.green;
-    }
+    final rangeService = context.read<GlucoseRangeService>();
+    final statusColor = rangeService.getColor(glucoseValue);
+    final zoneLabel = rangeService.getZoneLabel(glucoseValue);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: statusColor.withOpacity(0.1),
+          backgroundColor: statusColor.withAlpha(26),
           child: Text(
             glucoseValue.toStringAsFixed(0),
             style: TextStyle(
@@ -221,10 +229,10 @@ class _StatsScreenState extends State<StatsScreen> {
         ),
         trailing: Chip(
           label: Text(
-            classification,
+            zoneLabel,
             style: const TextStyle(fontSize: 11),
           ),
-          backgroundColor: statusColor.withOpacity(0.1),
+          backgroundColor: statusColor.withAlpha(26),
           side: BorderSide(color: statusColor),
         ),
       ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:glucpred/core/config/theme.dart';
+import 'package:glucpred/core/services/glucose_range_service.dart';
 
 class AlertRangesScreen extends StatefulWidget {
   const AlertRangesScreen({super.key});
@@ -220,7 +222,10 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
                   onPressed: () async {
                     final messenger = ScaffoldMessenger.of(context);
                     final navigator = Navigator.of(context);
+                    final rangeService = context.read<GlucoseRangeService>();
                     await _saveRanges();
+                    // Notify all consumers of the new ranges immediately.
+                    await rangeService.load();
                     if (!mounted) return;
                     messenger.showSnackBar(
                       const SnackBar(

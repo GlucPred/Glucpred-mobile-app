@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:glucpred/core/config/theme.dart';
 import 'package:glucpred/core/network/api_client.dart';
 import 'package:glucpred/core/services/notification_service.dart';
+import 'package:glucpred/core/services/glucose_range_service.dart';
 import 'package:glucpred/features/auth/presentation/screens/splash_screen.dart';
 import 'package:glucpred/features/auth/presentation/screens/login_selection_screen.dart';
 import 'package:glucpred/features/auth/data/repositories/auth_repository.dart';
@@ -53,6 +54,8 @@ class GlucPredApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(
+            create: (_) => GlucoseRangeService()..load()),
         ChangeNotifierProvider(
             create: (_) => SettingsViewModel()..loadSettings()),
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepo)),
