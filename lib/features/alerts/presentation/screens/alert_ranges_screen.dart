@@ -196,11 +196,10 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
                               Switch(
                                 value: _autoAlertsEnabled,
                                 onChanged: (value) {
-                                  setState(() {
-                                    _autoAlertsEnabled = value;
-                                  });
+                                  setState(() => _autoAlertsEnabled = value);
                                 },
-                                activeColor: const Color(0xFF0073E6),
+                                activeThumbColor: const Color(0xFF0073E6),
+                                activeTrackColor: const Color(0xFF0073E6).withAlpha(80),
                               ),
                             ],
                           ),
@@ -219,15 +218,17 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final navigator = Navigator.of(context);
                     await _saveRanges();
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       const SnackBar(
                         content: Text('Cambios guardados correctamente'),
                         backgroundColor: Color(0xFF337536),
                       ),
                     );
-                    Navigator.pop(context);
+                    navigator.pop();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0073E6),

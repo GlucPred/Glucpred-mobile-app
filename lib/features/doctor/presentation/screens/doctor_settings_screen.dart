@@ -214,7 +214,7 @@ class _DoctorSettingsScreenState extends State<DoctorSettingsScreen> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(isDark ? 0.2 : 0.1),
+                  color: iconColor.withAlpha(isDark ? 51 : 26),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -285,7 +285,7 @@ class _DoctorSettingsScreenState extends State<DoctorSettingsScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(isDark ? 0.2 : 0.1),
+                color: iconColor.withAlpha(isDark ? 51 : 26),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -321,7 +321,8 @@ class _DoctorSettingsScreenState extends State<DoctorSettingsScreen> {
             Switch(
               value: value,
               onChanged: onChanged,
-              activeColor: const Color(0xFF0073E6),
+              activeThumbColor: const Color(0xFF0073E6),
+              activeTrackColor: const Color(0xFF0073E6).withAlpha(80),
             ),
           ],
         ),
