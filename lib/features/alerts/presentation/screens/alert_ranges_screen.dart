@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:glucpred/core/config/theme.dart';
 
 class AlertRangesScreen extends StatefulWidget {
@@ -10,14 +11,51 @@ class AlertRangesScreen extends StatefulWidget {
 
 class _AlertRangesScreenState extends State<AlertRangesScreen> {
   bool _autoAlertsEnabled = true;
-  
-  // Controladores para los campos de texto
-  final _minValueController = TextEditingController(text: '70');
-  final _maxValueController = TextEditingController(text: '140');
-  final _precautionRangeController = TextEditingController(text: '100-140');
-  final _highCriticalController = TextEditingController(text: '180');
-  final _lowCriticalController = TextEditingController(text: '60');
-  final _trendDurationController = TextEditingController(text: '12h');
+  bool _loading = true;
+
+  final _minValueController = TextEditingController();
+  final _maxValueController = TextEditingController();
+  final _precautionRangeController = TextEditingController();
+  final _highCriticalController = TextEditingController();
+  final _lowCriticalController = TextEditingController();
+  final _trendDurationController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRanges();
+  }
+
+  Future<void> _loadRanges() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _minValueController.text =
+          prefs.getString('range_min') ?? '70';
+      _maxValueController.text =
+          prefs.getString('range_max') ?? '140';
+      _precautionRangeController.text =
+          prefs.getString('range_precaution') ?? '100-140';
+      _highCriticalController.text =
+          prefs.getString('range_high_critical') ?? '180';
+      _lowCriticalController.text =
+          prefs.getString('range_low_critical') ?? '60';
+      _trendDurationController.text =
+          prefs.getString('range_trend_duration') ?? '12h';
+      _autoAlertsEnabled = prefs.getBool('auto_alerts_enabled') ?? true;
+      _loading = false;
+    });
+  }
+
+  Future<void> _saveRanges() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('range_min', _minValueController.text.trim());
+    await prefs.setString('range_max', _maxValueController.text.trim());
+    await prefs.setString('range_precaution', _precautionRangeController.text.trim());
+    await prefs.setString('range_high_critical', _highCriticalController.text.trim());
+    await prefs.setString('range_low_critical', _lowCriticalController.text.trim());
+    await prefs.setString('range_trend_duration', _trendDurationController.text.trim());
+    await prefs.setBool('auto_alerts_enabled', _autoAlertsEnabled);
+  }
 
   @override
   void dispose() {
@@ -33,6 +71,11 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       backgroundColor: isDark ? AppTheme.darkBackgroundColor : const Color(0xFFF9FAFB),
       appBar: AppBar(
@@ -175,7 +218,9 @@ class _AlertRangesScreenState extends State<AlertRangesScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    await _saveRanges();
+                    if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Cambios guardados correctamente'),

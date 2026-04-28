@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:glucpred/core/services/notification_service.dart';
 import 'package:glucpred/features/alerts/data/repositories/alerts_repository.dart';
 
 enum AlertsFilter { all, critical, reminders }
@@ -34,13 +35,39 @@ class AlertsViewModel extends ChangeNotifier {
       if (_filter == AlertsFilter.reminders) typeFilter = 'recordatorio';
 
       final response = await _repo.getAlerts(type: typeFilter, limit: 50);
-      _alerts = List<Map<String, dynamic>>.from(response['alerts'] ?? []);
+      final newAlerts =
+          List<Map<String, dynamic>>.from(response['alerts'] ?? []);
+
+      _alerts = newAlerts;
+
+      // Disparar notificación local si hay alertas críticas no leídas.
+      await _notifyUnreadCritical(newAlerts);
     } catch (e) {
       _errorMessage = 'Error al cargar alertas: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _notifyUnreadCritical(
+      List<Map<String, dynamic>> alerts) async {
+    final unreadCritical = alerts.where((a) =>
+        a['alert_type'] == 'critica' && a['is_read'] == false).toList();
+
+    if (unreadCritical.isEmpty) return;
+
+    final toggles = await NotificationService.readToggles();
+
+    // Usar los datos de la alerta más reciente como texto de la notificación.
+    final latest = unreadCritical.first;
+    await NotificationService.instance.showCriticalAlert(
+      title: latest['title']?.toString() ?? 'Alerta de glucosa',
+      body: latest['message']?.toString() ??
+          'Tienes ${unreadCritical.length} alerta(s) crítica(s) sin leer.',
+      soundEnabled: toggles.sound,
+      vibrationEnabled: toggles.vibration,
+    );
   }
 
   Future<bool> markAsRead(int alertId) async {

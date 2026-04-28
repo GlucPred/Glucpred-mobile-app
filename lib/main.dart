@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:glucpred/core/config/theme.dart';
 import 'package:glucpred/core/network/api_client.dart';
+import 'package:glucpred/core/services/notification_service.dart';
 import 'package:glucpred/features/auth/presentation/screens/splash_screen.dart';
 import 'package:glucpred/features/auth/presentation/screens/login_selection_screen.dart';
 import 'package:glucpred/features/auth/data/repositories/auth_repository.dart';
@@ -23,6 +24,10 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar servicio de notificaciones locales antes de runApp.
+  await NotificationService.instance.init();
+  await NotificationService.instance.requestPermission();
 
   // Redirect to login whenever the API returns 401 (token expired/invalid).
   ApiClient.onUnauthorized = () {

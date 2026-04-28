@@ -46,6 +46,8 @@ dependencies:
   health: ^13.2.1
   intl: ^0.20.2
   provider: ^6.1.2
+  flutter_local_notifications: ^17.2.2
+  timezone: ^0.9.4
 
 dev_dependencies:
   flutter_test:
