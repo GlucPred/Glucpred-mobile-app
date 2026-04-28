@@ -7,10 +7,18 @@ on:
         description: 'API Base URL'
         required: false
         default: 'http://76.13.233.77:5000'
+      create_release:
+        description: 'Crear GitHub Release'
+        required: false
+        default: 'true'
+        type: boolean
   push:
     branches:
       - main
       - test
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -46,4 +54,25 @@ jobs:
         with:
           name: glucpred-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 7
+          retention-days: 30
+
+      - name: Create GitHub Release (main only)
+        if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          DATE=$(date +'%Y.%m.%d')
+          TAG="v${DATE}-${SHORT_SHA}"
+          BRANCH="${{ github.ref_name }}"
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+
+          gh release create "$TAG" \
+            build/app/outputs/flutter-apk/app-release.apk#glucpred-$TAG.apk \
+            --title "GlucPred $DATE ($SHORT_SHA)" \
+            --notes "**Rama:** \`$BRANCH\`
+          **Commit:** \`${{ github.sha }}\`
+          **Mensaje:** $COMMIT_MSG
+
+          API apuntando a: \`${{ github.event.inputs.api_base_url || 'http://76.13.233.77:5000' }}\`" \
+            --repo "${{ github.repository }}"
