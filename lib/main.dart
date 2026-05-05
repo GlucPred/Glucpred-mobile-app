@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:glucpred/core/config/theme.dart';
 import 'package:glucpred/core/network/api_client.dart';
 import 'package:glucpred/core/services/notification_service.dart';
 import 'package:glucpred/core/services/glucose_range_service.dart';
+import 'package:glucpred/core/services/fcm_service.dart';
+import 'package:glucpred/core/services/socket_service.dart';
 import 'package:glucpred/features/auth/presentation/screens/splash_screen.dart';
 import 'package:glucpred/features/auth/presentation/screens/login_selection_screen.dart';
 import 'package:glucpred/features/auth/data/repositories/auth_repository.dart';
@@ -26,12 +30,19 @@ final navigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Firebase must be initialized before any Firebase call.
+  await Firebase.initializeApp();
+
+  // Register background FCM handler (must be top-level function).
+  FirebaseMessaging.onBackgroundMessage(FcmService.backgroundHandler);
+
   // Inicializar servicio de notificaciones locales antes de runApp.
   await NotificationService.instance.init();
   await NotificationService.instance.requestPermission();
 
   // Redirect to login whenever the API returns 401 (token expired/invalid).
   ApiClient.onUnauthorized = () {
+    SocketService.instance.disconnect();
     navigatorKey.currentState?.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginSelectionScreen()),
       (_) => false,

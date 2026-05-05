@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:glucpred/features/auth/data/repositories/auth_repository.dart';
+import 'package:glucpred/core/services/fcm_service.dart';
+import 'package:glucpred/core/services/socket_service.dart';
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 
@@ -19,12 +21,27 @@ class AuthViewModel extends ChangeNotifier {
   Map<String, dynamic>? get userInfo => _userInfo;
   bool get isLoading => _status == AuthStatus.loading;
 
+  /// Starts FCM registration and Socket.IO connection in the background.
+  Future<void> _startRealtimeServices() async {
+    try {
+      await FcmService.instance.init();
+    } catch (e) {
+      debugPrint('FCM init error: $e');
+    }
+    try {
+      await SocketService.instance.connect();
+    } catch (e) {
+      debugPrint('Socket connect error: $e');
+    }
+  }
+
   Future<bool> checkAuth() async {
     final loggedIn = await _repo.isLoggedIn();
     if (loggedIn) {
       _userRole = await _repo.getUserRole();
       _userInfo = await _repo.getUserInfo();
       _status = AuthStatus.authenticated;
+      _startRealtimeServices();
     } else {
       _status = AuthStatus.unauthenticated;
     }
@@ -43,6 +60,7 @@ class AuthViewModel extends ChangeNotifier {
       _userInfo = await _repo.getUserInfo();
       _status = AuthStatus.authenticated;
       notifyListeners();
+      _startRealtimeServices();
       return true;
     } else {
       _errorMessage = result['message'] ?? 'Error al iniciar sesión';

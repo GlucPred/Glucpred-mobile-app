@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:glucpred/features/alerts/presentation/viewmodels/alerts_view_model.dart';
 import 'package:glucpred/features/records/presentation/screens/home_screen.dart';
 import 'package:glucpred/features/profile/presentation/screens/profile_screen.dart';
 import 'package:glucpred/features/records/presentation/screens/charts_screen.dart';
@@ -38,31 +40,44 @@ class _MainNavigationState extends State<MainNavigation> {
           if (index == 2 && _currentIndex != 2) {
             _chartsKey.currentState?.reload();
           }
+          // Clear unread badge when user opens Alerts tab
+          if (index == 3) {
+            context.read<AlertsViewModel>().clearUnreadCount();
+          }
           setState(() {
             _currentIndex = index;
           });
         },
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF0073E6), // Azul de la paleta
-        unselectedItemColor: const Color(0xFF6C7C93), // Gris de la paleta
-        items: const [
-          BottomNavigationBarItem(
+        selectedItemColor: const Color(0xFF0073E6),
+        unselectedItemColor: const Color(0xFF6C7C93),
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Inicio',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Perfil',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.show_chart),
             label: 'Gráfica',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
+            icon: Consumer<AlertsViewModel>(
+              builder: (_, vm, __) {
+                final count = vm.unreadCount;
+                if (count == 0) return const Icon(Icons.notifications);
+                return Badge.count(
+                  count: count > 99 ? 99 : count,
+                  child: const Icon(Icons.notifications),
+                );
+              },
+            ),
             label: 'Alertas',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.settings),
             label: 'Ajustes',
           ),

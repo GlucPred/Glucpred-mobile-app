@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "189132067533",
+    "project_id": "glucpred",
+    "storage_bucket": "glucpred.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:189132067533:android:aa8697a3d19ac2415dcf84",
+        "android_client_info": {
+          "package_name": "com.glucpred.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASTmJiCf94YVTG-tGC3CZT_cz8wR_VI1s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

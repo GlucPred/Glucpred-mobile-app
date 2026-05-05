@@ -15,6 +15,10 @@ class ApiClient {
 
   static String get baseUrl => EnvConfig.apiBaseUrl;
 
+  /// Returns the stored JWT token (or null if not logged in).
+  static Future<String?> getStoredToken() =>
+      _secureStorage.read(key: 'access_token');
+
   /// Extracts a human-readable error string from a decoded JSON map.
   /// Backends in this project return either `message` or `error`.
   static String parseMessage(Map<String, dynamic> data, [String fallback = 'Error desconocido']) {
