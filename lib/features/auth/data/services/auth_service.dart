@@ -269,15 +269,26 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
+        // Backend only returns 'profile' (medical data). User identity data
+        // (name, email, username) is read from local secure storage.
         return {
           'success': true,
-          'user': data['user'],
-          'profile': data['profile'],
+          'user': userInfo,
+          'profile': data['profile'] ?? <String, dynamic>{},
+        };
+      } else if (response.statusCode == 404) {
+        // Profile row not yet created (Kafka lag or new user who skipped setup).
+        // Return empty profile so the screen can still render with user data.
+        return {
+          'success': true,
+          'user': userInfo,
+          'profile': <String, dynamic>{},
         };
       } else {
+        final msg = data['error'] ?? data['message'] ?? 'Error al obtener perfil';
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener perfil',
+          'message': msg,
         };
       }
     } catch (e) {

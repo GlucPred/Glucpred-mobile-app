@@ -70,15 +70,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final result = await AuthService.getProfile();
 
     if (result['success']) {
-      final user = result['user'];
-      final profile = result['profile'];
+      final user = (result['user'] as Map<String, dynamic>?) ?? {};
+      final profile = (result['profile'] as Map<String, dynamic>?) ?? {};
 
       setState(() {
-        // Datos de usuario
-        _nameController.text = user['nombre_completo'] ?? '';
-        _usernameController.text = user['username'] ?? '';
-        _phoneController.text = user['numero_celular'] ?? '';
-        _emailController.text = user['email'] ?? '';
+        // Datos de usuario (from local storage via getUserInfo)
+        _nameController.text = user['nombre_completo']?.toString() ?? '';
+        _usernameController.text = user['username']?.toString() ?? '';
+        _phoneController.text = user['numero_celular']?.toString() ?? '';
+        _emailController.text = user['email']?.toString() ?? '';
 
         // Datos del perfil médico
         _ageController.text = profile['edad']?.toString() ?? '';
