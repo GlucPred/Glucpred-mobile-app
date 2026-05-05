@@ -14,10 +14,10 @@ class ChartsScreen extends StatefulWidget {
   const ChartsScreen({super.key});
 
   @override
-  State<ChartsScreen> createState() => _ChartsScreenState();
+  ChartsScreenState createState() => ChartsScreenState();
 }
 
-class _ChartsScreenState extends State<ChartsScreen> {
+class ChartsScreenState extends State<ChartsScreen> {
   int _selectedTab = 0;
   bool _isLoading = true;
   List<TrendPoint> _chartData = [];
@@ -26,6 +26,11 @@ class _ChartsScreenState extends State<ChartsScreen> {
   @override
   void initState() {
     super.initState();
+    _loadChartData();
+  }
+
+  /// Called by MainNavigation when this tab becomes active.
+  void reload() {
     _loadChartData();
   }
 

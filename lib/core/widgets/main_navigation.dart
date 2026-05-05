@@ -14,13 +14,14 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
+  final _chartsKey = GlobalKey<ChartsScreenState>();
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    ProfileScreen(),
-    ChartsScreen(),
-    NotificationsScreen(),
-    SettingsScreen(),
+  late final List<Widget> _screens = [
+    const HomeScreen(),
+    const ProfileScreen(),
+    ChartsScreen(key: _chartsKey),
+    const NotificationsScreen(),
+    const SettingsScreen(),
   ];
 
   @override
@@ -33,6 +34,10 @@ class _MainNavigationState extends State<MainNavigation> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
+          // Reload charts data whenever the user switches to that tab
+          if (index == 2 && _currentIndex != 2) {
+            _chartsKey.currentState?.reload();
+          }
           setState(() {
             _currentIndex = index;
           });
