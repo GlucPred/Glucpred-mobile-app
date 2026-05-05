@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:glucpred/core/config/theme.dart';
+import 'package:glucpred/core/services/socket_service.dart';
 import 'package:glucpred/features/doctor/presentation/screens/patient_detail_screen.dart';
 import 'package:glucpred/features/doctor/presentation/screens/add_patient_screen.dart';
 import 'package:glucpred/features/doctor/presentation/viewmodels/doctor_home_view_model.dart';
@@ -13,12 +14,26 @@ class DoctorHomeScreen extends StatefulWidget {
 }
 
 class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
+  late final AlertCallback _socketAlertHandler;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DoctorHomeViewModel>().loadDoctorData();
     });
+    _socketAlertHandler = (_) {
+      if (mounted) {
+        context.read<DoctorHomeViewModel>().loadDoctorData();
+      }
+    };
+    SocketService.instance.addAlertListener(_socketAlertHandler);
+  }
+
+  @override
+  void dispose() {
+    SocketService.instance.removeAlertListener(_socketAlertHandler);
+    super.dispose();
   }
 
   @override
