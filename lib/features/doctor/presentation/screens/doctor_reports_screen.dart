@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:glucpred/core/config/theme.dart';
+import 'package:glucpred/core/services/socket_service.dart';
 import 'package:glucpred/features/auth/data/services/auth_service.dart';
 import 'package:glucpred/features/records/data/services/records_service.dart';
 import 'package:glucpred/core/utils/logger.dart';
@@ -22,6 +23,7 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> with Automati
   List<Map<String, dynamic>> _allRecords = [];
   Map<int, String> _patientNames = {};
   Map<int, Color> _patientColors = {};
+  late final AlertCallback _socketAlertHandler;
 
   @override
   bool get wantKeepAlive => true;
@@ -30,9 +32,19 @@ class _DoctorReportsScreenState extends State<DoctorReportsScreen> with Automati
   void initState() {
     super.initState();
     _loadRecords();
+    _socketAlertHandler = (_) {
+      if (mounted) _loadRecords();
+    };
+    SocketService.instance.addAlertListener(_socketAlertHandler);
   }
 
-  Future<void> _loadRecords() async {
+  @override
+  void dispose() {
+    SocketService.instance.removeAlertListener(_socketAlertHandler);
+    super.dispose();
+  }
+
+  Future<void> _loadRecords()async {
     AppLogger.debug('DoctorReportsScreen: Loading patient records...');
     setState(() => _isLoading = true);
     

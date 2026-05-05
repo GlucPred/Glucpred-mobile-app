@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:glucpred/core/config/theme.dart';
+import 'package:glucpred/core/services/socket_service.dart';
 import 'package:glucpred/features/alerts/data/services/alerts_service.dart';
 import 'package:glucpred/core/utils/logger.dart';
 
@@ -17,6 +18,7 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> with AutomaticK
   String _searchQuery = '';
   bool _isLoading = false;
   List<Map<String, dynamic>> _alerts = [];
+  late final AlertCallback _socketAlertHandler;
 
   @override
   bool get wantKeepAlive => true;
@@ -25,6 +27,10 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> with AutomaticK
   void initState() {
     super.initState();
     _loadAlerts();
+    _socketAlertHandler = (_) {
+      if (mounted) _loadAlerts();
+    };
+    SocketService.instance.addAlertListener(_socketAlertHandler);
   }
 
   Future<void> _loadAlerts() async {
@@ -51,6 +57,7 @@ class _DoctorAlertsScreenState extends State<DoctorAlertsScreen> with AutomaticK
 
   @override
   void dispose() {
+    SocketService.instance.removeAlertListener(_socketAlertHandler);
     _searchController.dispose();
     super.dispose();
   }
