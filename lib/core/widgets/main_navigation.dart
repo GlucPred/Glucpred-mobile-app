@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:glucpred/core/services/fcm_service.dart';
 import 'package:glucpred/features/alerts/presentation/viewmodels/alerts_view_model.dart';
+import 'package:glucpred/features/records/presentation/viewmodels/home_view_model.dart';
 import 'package:glucpred/features/records/presentation/screens/home_screen.dart';
 import 'package:glucpred/features/profile/presentation/screens/profile_screen.dart';
 import 'package:glucpred/features/records/presentation/screens/charts_screen.dart';
@@ -14,7 +16,8 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _chartsKey = GlobalKey<ChartsScreenState>();
 
@@ -25,6 +28,38 @@ class _MainNavigationState extends State<MainNavigation> {
     const NotificationsScreen(),
     const SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Navigate to Alerts tab when a FCM notification is tapped.
+    FcmService.onAlertTapped = _goToAlertsTab;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// App resumed from background/terminated — refresh critical screens.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshOnResume();
+    }
+  }
+
+  void _goToAlertsTab() {
+    if (mounted) setState(() => _currentIndex = 3);
+  }
+
+  /// Reload home data and alert count so the UI is up-to-date after background.
+  void _refreshOnResume() {
+    context.read<HomeViewModel>().loadData();
+    context.read<AlertsViewModel>().loadAlerts();
+  }
 
   @override
   Widget build(BuildContext context) {

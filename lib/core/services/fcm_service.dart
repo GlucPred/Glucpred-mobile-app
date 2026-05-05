@@ -1,14 +1,18 @@
-import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../network/api_client.dart';
+import '../services/notification_service.dart';
 
 /// Handles FCM token registration and message routing.
 /// Call [init] once after login.
 class FcmService {
   FcmService._();
   static final FcmService instance = FcmService._();
+
+  /// Called when user taps a notification from background/terminated state.
+  /// Set this in the navigation widget to switch to the alerts tab.
+  static void Function()? onAlertTapped;
 
   /// Must be called BEFORE [init] — top-level handler for background/terminated messages.
   static Future<void> backgroundHandler(RemoteMessage message) async {
@@ -31,13 +35,13 @@ class FcmService {
     // Token refresh
     FirebaseMessaging.instance.onTokenRefresh.listen(_sendTokenToServer);
 
-    // Foreground messages
+    // Foreground messages — show local notification since Android suppresses them
     FirebaseMessaging.onMessage.listen(_handleForeground);
 
-    // Background → app opened
+    // Background → app opened via notification tap
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpened);
 
-    // Check if app was launched from a notification
+    // Check if app was launched from a notification (terminated state)
     final initial = await FirebaseMessaging.instance.getInitialMessage();
     if (initial != null) _handleMessageOpened(initial);
   }
@@ -65,14 +69,24 @@ class FcmService {
     }
   }
 
-  void _handleForeground(RemoteMessage message) {
+  /// Foreground: Android does NOT show FCM notification messages automatically.
+  /// We show a local notification manually so the user sees it even while in the app.
+  Future<void> _handleForeground(RemoteMessage message) async {
     debugPrint('FCM foreground: ${message.notification?.title}');
-    // Notifications while app is open are handled by SocketService / AlertsViewModel.
-    // No local notification needed — the banner/badge is shown via Socket.IO.
+    final notification = message.notification;
+    if (notification == null) return;
+    final toggles = await NotificationService.readToggles();
+    await NotificationService.instance.showCriticalAlert(
+      title: notification.title ?? 'Alerta GlucPred',
+      body: notification.body ?? '',
+      soundEnabled: toggles.sound,
+      vibrationEnabled: toggles.vibration,
+    );
   }
 
+  /// Background/terminated: user tapped the notification → navigate to alerts.
   void _handleMessageOpened(RemoteMessage message) {
     debugPrint('FCM tapped: ${message.data}');
-    // TODO: navigate to Alerts tab via NavigationService when implemented
+    onAlertTapped?.call();
   }
 }

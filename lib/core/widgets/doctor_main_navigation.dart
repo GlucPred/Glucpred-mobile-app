@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:glucpred/core/services/fcm_service.dart';
 import 'package:glucpred/features/alerts/presentation/viewmodels/alerts_view_model.dart';
+import 'package:glucpred/features/doctor/presentation/viewmodels/doctor_home_view_model.dart';
 import 'package:glucpred/features/doctor/presentation/screens/doctor_home_screen.dart';
 import 'package:glucpred/features/doctor/presentation/screens/doctor_profile_screen.dart';
 import 'package:glucpred/features/doctor/presentation/screens/doctor_reports_screen.dart';
@@ -15,7 +17,8 @@ class DoctorMainNavigation extends StatefulWidget {
   State<DoctorMainNavigation> createState() => _DoctorMainNavigationState();
 }
 
-class _DoctorMainNavigationState extends State<DoctorMainNavigation> {
+class _DoctorMainNavigationState extends State<DoctorMainNavigation>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
@@ -25,6 +28,37 @@ class _DoctorMainNavigationState extends State<DoctorMainNavigation> {
     DoctorAlertsScreen(),
     DoctorSettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Navigate to Alerts tab when a FCM notification is tapped.
+    FcmService.onAlertTapped = _goToAlertsTab;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// App resumed from background/terminated — refresh critical doctor screens.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshOnResume();
+    }
+  }
+
+  void _goToAlertsTab() {
+    if (mounted) setState(() => _currentIndex = 3);
+  }
+
+  void _refreshOnResume() {
+    context.read<AlertsViewModel>().loadAlerts();
+    context.read<DoctorHomeViewModel>().loadDoctorData();
+  }
 
   @override
   Widget build(BuildContext context) {
